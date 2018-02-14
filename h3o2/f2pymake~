@@ -1,0 +1,1 @@
+f2py -c -L. -llapack -lblas --f90flags="-fdefault-real-8 -fdefault-double-8" -m h3o2pes h3o2.pes2.f
