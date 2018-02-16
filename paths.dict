@@ -2,3 +2,4 @@ potentialHOHOH pes.so
 potentialPathHOHOH /Users/lindsey/Documents/Research/DMC-Water-Clusters/h3o2
 equilibriumStructureHOHOH cooordsHOHOH.xyz
 destinationHOHOH  HOHOHResults
+massFile  HOHOHmass.txt
