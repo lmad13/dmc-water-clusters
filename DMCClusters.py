@@ -27,12 +27,12 @@ class wavefunction:
         self.set_dtau()
         self.mass=self.molecule.get_mass()
         self.sigma_dx=(2.0000*self.D*self.dtau/self.mass)**0.5
-        self.alpha=0.25/self.dtau
+        self.alpha=0.1/self.dtau
 
         self.recrossing=True if 'node' in potentialName else False
 
     def set_dtau(self):
-        self.dtau=5.0
+        self.dtau=100.0
         print 'dtau is ', self.dtau, 'imaginary atomic time units'
 
     def loadDict(self,fileName):
@@ -51,8 +51,8 @@ class wavefunction:
 
         return dx
 
-    def propagate(self,x,nSteps,setV_ref=False,ConstantV_ref=0,printCensus=False,initialPop=0):
-        print 'ready to propagate for',nSteps, 'steps on x (shaped:',x.shape,')'
+    def propagate(self,x,nSteps,setV_ref=False,ConstantV_ref=0,printCensus=True,initialPop=0):
+        print 'ready to propagate for',nSteps, 'steps on x (shaped:',x.shape,') '
         if initialPop==0:#if it is the default value of zero...it needs to be set.
             initialPop=x.shape[0]
         if setV_ref:
@@ -60,19 +60,19 @@ class wavefunction:
         else:
             v_ref=np.average(self.molecule.V(x))#+(self.alpha*(1-float(N_size_step)/float(nSize)))
 
-        self.currentPop=initialPop
+        self.currentPop=x.shape[0]
         population=[]
         population.append(self.currentPop)
-        print 'and x.size is', initialPop
+        print 'and x.size is', self.currentPop, 'out of',initialPop
 
         vRefList=[]
         vRefList.append(v_ref)
 
-        descendants=np.zeros((initialPop))
-        whoYaFrom=np.arange(initialPop)
+        descendants=np.zeros((self.currentPop))
+        whoYaFrom=np.arange(self.currentPop)
         
         for step in range(nSteps):
-            print 'step #',step
+            if printCensus: print 'step #',step, 
             dx=self.diffuse()
             x=x+dx
             v=self.molecule.V(x)
@@ -86,7 +86,7 @@ class wavefunction:
             mask_survive=(Diff>0)
             nDeaths=np.sum(np.array(Diff<0).astype(int))
             survivors=x[mask_survive]
-            if printCensus: print 'Census: Deaths:',nDeaths,
+            if printCensus: print 'Census: Current Population:',self.currentPop,'Deaths:',nDeaths,
 
             # Recrossing goes here
             if self.recrossing:
@@ -124,6 +124,7 @@ class wavefunction:
            #for the additional births                                                   
             for n,(particle,weight) in enumerate(zip(x,weight_P_b)):
                 if weight>0: #i.e. the dead can't reproduce                              
+                    print 'weight for tiling:', weight, n,particle
                     if weight>10:
                         #this really shouldn't happen                                    
                         print 'weight is too big, resetting to 10'
@@ -131,13 +132,16 @@ class wavefunction:
                         weight=10
                     addBirthtot=addBirthtot+weight
                     temp=np.tile(particle,weight)
-                    temp_whoYaFrom=np.tile(whoYaFrom[p],weight)
+                    temp_whoYaFrom=np.tile(whoYaFrom[n],weight)
                     new_pop=np.concatenate((new_pop,temp))
                     new_pop_whoYaFrom=np.concatenate((new_pop_whoYaFrom,temp_whoYaFrom))
             next_gen=new_pop
             next_gen_whoYaFrom=new_pop_whoYaFrom
             #collect survivors and next generation                                       
             new_population=np.concatenate((survivors,next_gen))
+            whoYaFrom=np.concatenate((whoYaFrom[mask_survive],next_gen_whoYaFrom))
+            x=new_population
+
             self.currentPop=x.shape[0]
             if printCensus: print '. Births:',nBirths, ". Add' births: ", addBirthtot
 
@@ -145,12 +149,10 @@ class wavefunction:
             v_average=np.average(self.molecule.V(new_population))
             if not setV_ref:
                 v_ref=v_average+(self.alpha*(1-float(self.currentPop)/float(initialPop)))
-            if printCensus: print '(',N_size_step,'/',nSize,') v_ref',v_ref, '=', v_average,'+', (self.alpha*(1-float(N_size_step)/float(nSize)))
+            #if printCensus: print '(',self.currentPop,'/',initialPop,') v_ref',v_ref, '=', v_average,'+', (self.alpha*(1-float(self.currentPop)/float(initialPop)))
             vRefList.append(v_ref)
             population.append(self.currentPop)
 
-            whoYaFrom=np.concatenate((whoYaFrom[mask_survive],next_gen_whoYaFrom))
-            x=new_population
 
         for anc in whoYaFrom:
             descendants[anc]=descendants[anc]+1
