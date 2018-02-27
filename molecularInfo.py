@@ -1,6 +1,10 @@
 import numpy as np
 import sys
 import os
+global massH
+global massO
+massH=1.00782503223
+massO=15.99491561957
 massConversionFactor=1.000000000000000000/6.02213670000e23/9.10938970000e-28#1822.88839 
 global Water
 Water={'H2O', 'water', 'HOH', 'h2o'}
@@ -21,7 +25,11 @@ class molecule:
             self.nAtoms=5
         self.pathDict=self.loadDict("paths.dict")
         self.potential=self.getPES()
-
+        self.surfaceName="GroundState"
+    def setNodalSurface(self,surfaceName,side):
+        self.surfaceName=surfaceName
+        self.side=side
+        self.state=1
     def getPES(self):
         sys.path.insert(0,self.pathDict["potentialPath"+self.name])
         import pes
@@ -41,6 +49,18 @@ class molecule:
     
     def V(self,x):
         v=np.array([self.potential(cart_in) for cart_in in x])
+        for n,pot_mol in enumerate(v):
+            if np.isnan(pot_mol):
+                print 'gosh, the ', n,'th is a problem:\n', x[n]
+
+        if self.surfaceName=='SharedProton':
+            r=self.calcRn(x)
+            if self.side=='Right':
+                v[(r<0)]=1000.00
+            elif self.side=='Left':
+                v[(r>0)]=1000.00
+            else:
+                donothing=1
         return v
 
 
@@ -50,7 +70,7 @@ class molecule:
         print 'there are ', self.nAtoms , 'atoms in ', self.name
         if self.name in DeprotonatedWaterDimer:
             coords=np.array([
-                    [   0.000000000000000 ,  0.000000000000000 ,  0.000000000000000 ],
+                    [   0.000000000000000 ,  0.000000000000000 ,  0.000000000000000],
                     [  -2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
                     [  -2.749724314110769 ,  1.765018349357672 ,  0.000000000000000],
                     [   2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
@@ -62,15 +82,15 @@ class molecule:
 
     def get_mass(self):
         mass=np.zeros((self.nAtoms))
-        massH=1.00782503223
-        massO=15.99491561957
         if self.name in DeprotonatedWaterDimer:
             mass=np.array([massH,massO,massH,massO,massH])
         return mass*massConversionFactor
 
     def calcReducedmass(self,x):
-        # for the shared proton stretch, page 42 in notebook #2                                                                   
-        if self.name in ProtonatedWaterDimer and self.state==1 and self.nodeCoord=='SharedProton':
+        # for the shared proton stretch, page 42 in notebook #2
+        massOamu=massO*massConversionFactor
+        massHamu=massH*massConversionFactor
+        if self.name in ProtonatedWaterDimer and self.state==1 and self.surfaceName=='SharedProton':
             ##COMwat1=1.0/massWater*(massO*x[:,0,:]+massH*(x[:,3,:]+x[:,4,:]))
             ##COMwat2=1.0/massWater*(massO*x[:,1,:]+massH*(x[:,5,:]+x[:,6,:]))
             ##U=x[:,2,:]-COMwat1                                              
@@ -80,8 +100,7 @@ class molecule:
 
             magU=np.sqrt(U[:,0]**2+U[:,1]**2+U[:,2]**2)
             magV=np.sqrt(V[:,0]**2+V[:,1]**2+V[:,2]**2)
-            massOamu=massO*conversionFactor
-            massHamu=massH*conversionFactor
+            
             costheta= np.diag(np.dot(U,V.T))/(magU*magV)
             #mass=1.0/(2.0*((1.0/(massOamu+massHamu+massHamu))+((1-costheta)/(massHamu))))                                        
             #corresponds to calcrncom                                                                                             
@@ -89,7 +108,7 @@ class molecule:
             mass=1.0/(2.0*((1.0/(massOamu))+((1-costheta)/(massHamu))))
 
             #Mass of water or Mass of O??                                                                                         
-        elif self.name in ProtonatedWaterDimer and self.state==1 and self.nodeCoord=='StretchAntiIn':
+        elif self.name in ProtonatedWaterDimer and self.state==1 and self.surfaceName=='StretchAntiIn':
 
             U=x[:,0,:]-x[:,3,:]
             V=x[:,0,:]-x[:,4,:]
@@ -104,8 +123,6 @@ class molecule:
             magV=np.sqrt(V[:,0]**2+V[:,1]**2+V[:,2]**2)
             costhetaWat2= np.diag(np.dot(U,V.T))/(magU*magV)
 
-            massOamu=massO*conversionFactor
-            massHamu=massH*conversionFactor
             g=( (1.0/massOamu)+(1.0/massHamu) )  +  1.0/2.0*((costhetaWat1/massOamu)+(costhetaWat2/massOamu))
 
             mass= 1.0/g
@@ -117,8 +134,6 @@ class molecule:
 
             magU=np.sqrt(U[:,0]**2+U[:,1]**2+U[:,2]**2)
             magV=np.sqrt(V[:,0]**2+V[:,1]**2+V[:,2]**2)
-            massOamu=massO*conversionFactor
-            massHamu=massH*conversionFactor
             costheta= np.diag(np.dot(U,V.T))/(magU*magV)
             mass=1.0/(2.0*((1.0/(massOamu))+((1-costheta)/(massHamu))))
 
@@ -134,29 +149,34 @@ class molecule:
             print 'why are you calculateing the reduced mass on the ground state?'  , end
 
         else:
-            print 'not implemented for ', self.name , 'and', self.state, 'and', self.nodeCoord,end
+            print 'not implemented for ', self.name , 'and', self.state, 'and', self.surfaceName,end
 
         return mass
+    
+    def calcSharedProtonDisplacement(self,x):
+        if self.name in ProtonatedWaterDimer:
+            r1=self.bondlength(x,atom1=2, atom2=1)
+            r2=self.bondlength(x,atom1=2, atom2=0)
+            return r2-r1
+        elif self.name in DeprotonatedWaterDimer:
+            r1=self.bondlength(x,atom1=0, atom2=1)
+            r2=self.bondlength(x,atom1=0, atom2=3)#ha                          
+            return r2-r1
+
+    def calcStretchAntiIn(self,x):
+        if self.name in ProtonatedWaterDimer:
+            r1=self.bondlength(x,atom1=0, atom2=3)
+            r2=self.bondlength(x,atom1=0, atom2=4)
+            r3=self.bondlength(x,atom1=1, atom2=5)
+            r4=self.bondlength(x,atom1=1, atom2=6)
+            return 0.5*(r1+r2-r3-r4)
 
     def calcRn(self,x):
-        if self.molecule in ProtonatedWaterDimer:
-            if self.nodeCoord=='SharedProton':
-                r1=self.bondlength(x,atom1=2, atom2=1)
-                r2=self.bondlength(x,atom1=2, atom2=0)
-                return r2-r1
+        if self.surfaceName=='SharedProton':
+            return self.calcSharedProtonDisplacement(x)
+        elif self.surfaceName=='StretchAntiIn':
+            return self.calcStretchAntiIn(x)
 
-            elif self.nodeCoord=='StretchAntiIn':
-                r1=self.bondlength(x,atom1=0, atom2=3)
-                r2=self.bondlength(x,atom1=0, atom2=4)
-                r3=self.bondlength(x,atom1=1, atom2=5)
-                r4=self.bondlength(x,atom1=1, atom2=6)
-                return 0.5*(r1+r2-r3-r4)
-
-        elif self.molecule in DeprotonatedWaterDimer:
-            if self.nodeCoord=='SharedProton':
-                r1=self.bondlength(x,atom1=0, atom2=1)
-                r2=self.bondlength(x,atom1=0, atom2=3)#ha                                                                         
-                return r2-r1
 
     def bondlength(self,pos,atom1=1,atom2=2):
         length=(pos[:,atom1,0]-pos[:,atom2,0])**2+(pos[:,atom1,1]-pos[:,atom2,1])**2+(pos[:,atom1,2]-pos[:,atom2,2])**2
