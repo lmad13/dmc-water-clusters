@@ -8,7 +8,7 @@ nBins=51
 AvePsi2Hist=np.zeros((nBins))
 averaged_vref=[]
 list_of_pop_list=[]
-N_size=2000
+N_size=20000
 Wfn=dmc.wavefunction('HOHOH', N_size)
 
 #Equilibration
