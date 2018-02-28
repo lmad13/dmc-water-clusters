@@ -10,7 +10,7 @@ averaged_vref=[]
 list_of_pop_list=[]
 N_size=2000
 Wfn=dmc.wavefunction('HOHOH', N_size)
-
+Destination='ResultsH3O2/'
 #Equilibration
 initialx=Wfn.x*1.1
 equilibrationSteps=1000
@@ -31,7 +31,7 @@ nRepsDW=5
 for iwfn in range(nReps):
     print '   REPETITION NUMBER: ', iwfn
     v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
-    endtime=time.time()
+
     averaged_vref.append(np.average(np.array(v_ref_list)*au2wn))
     list_of_pop_list.append(pop_list)
     plt.figure(1)
@@ -52,7 +52,7 @@ for iwfn in range(nReps):
         v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size)
         descendantWeights=descendantWeights+descendantsTemp
     descendantWeights=descendantWeights/nRepsDW
-    
+    Wfn.exportCoords(inputx,Destination+'HOHOH-Ground-Eq-'+str(iwfn)+'.xyz',descendantWeights)
     Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-2.5,2.5),density=True,weights=descendantWeights)
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
     plt.subplot(313)
@@ -61,7 +61,8 @@ for iwfn in range(nReps):
     AvePsi2Hist=AvePsi2Hist+Psi2Hist
     inputx=finalCoords
     
-plt.savefig('Vref-Pop-histogram-GroundState.png')
+    endtime=time.time()
+plt.savefig(Destination+'Vref-Pop-histogram-GroundState.png')
 plt.show()
 
 print 'averaged v_ref:',averaged_vref

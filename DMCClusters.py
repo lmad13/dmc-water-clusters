@@ -56,6 +56,33 @@ class wavefunction:
 
         return dx
 
+    def exportCoords(self,x,fileName,nDesc):
+        fileout=open(fileName,'w')
+        for particle, note in zip(x,nDesc):
+            fileout.write(str(self.nAtoms)+' \n'+str(note)+' \n')
+            for atomName, atom in zip(self.molecule.names,particle):
+                fileout.write(str(atomName)+'   '+str(au2ang*atom[0])+"   "+str(au2ang*atom[1])+"   "+str(au2ang*atom[2])+"\n")
+            fileout.write("\n")
+        fileout.close()
+        return
+    def loadCoords(self,fileName):
+        filein=open(fileName,'r')
+        fdata=filein.readlines()
+        nMolecules=len(filedata)/(self.naAtoms+3)
+        repeatUnit=self.nAtoms+3
+        coord=np.zeros((nMolecules,nAtoms,3))
+        descCoord=np.zeros((nMolecules))
+        for ln in range(nMolecules):
+            coordstemp=[]
+            for an in range(self.nAtoms):
+                coordstemp.append(float(filedata[ln*repeatUnit+2+an].split()[1]))
+                coordstemp.append(float(filedata[ln*repeatUnit+2+an].split()[2]))
+                coordstemp.append(float(filedata[ln*repeatUnit+2+an].split()[3]))
+            coord[ln,:,:]=np.reshape(coordstemp,(self.nAtoms,3))
+            descCoord=float(filedata[ln*repeatUnit+1].split()[0])
+        coord=coord/au2ang
+        return coord,descCoord
+
     def propagate(self,x,nSteps,setV_ref=False,ConstantV_ref=0,printCensus=True,initialPop=0):
         #print 'ready to propagate for',nSteps, 'steps on x (shaped:',x.shape,') '
 
