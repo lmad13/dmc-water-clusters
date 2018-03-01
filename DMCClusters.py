@@ -119,8 +119,13 @@ class wavefunction:
             Diff=N_r-P_d
             mask_survive=(Diff>0)
             nDeaths=np.sum(np.array(Diff<0).astype(int))
-            survivors=x[mask_survive]
+            #survivors=x[mask_survive]
             if step%printRate==0 and printCensus: print 'Census: Current Population:',self.currentPop,'Deaths:',nDeaths,
+
+            #LASSIE MODE
+            #DEATH BY PEF HOLES
+            mask_not_holes=(v>0.0) #mask
+            mask_survive=np.logical_and(mask_survive,mask_not_holes)
 
             # removal of all walkers that cross and a random selection of walkers that are too close to the node
             if self.recrossing:
@@ -142,12 +147,15 @@ class wavefunction:
                 mask_survive_recross=(Diff>0)
                 tempRecrossCensus=np.sum(np.array(Diff<0).astype(int))
                 mask_survive=np.logical_and(mask_survive, mask_survive_recross)
-                survivors=x[mask_survive]            
-
                 if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ',tempRecrossCensus
             
-            #Creation of a random selection of walkers in the classically allowed region and who did not die by recrossing, so the survivors
             
+            survivors=x[mask_survive]            
+
+#Creation of a random selection of walkers in the classically allowed region and who did not die by recrossing, so the survivors
+        
+                
+    
             P_exp_b=np.exp(-(v-v_ref)*self.dtau)-1.0
             if self.recrossing:
                 P_exp_b[crossed]=0.00000  #if it crossed, the probability that it gives birth should be zero
@@ -171,8 +179,9 @@ class wavefunction:
                     if weight>10:
                         #this really shouldn't happen                                    
                         print 'weight is too big, resetting to 10'
-                        print x[n],v(n),'<',v_ref, -(v(n)-v_ref)
+                        print v[n]*au2wn,'<',v_ref*au2wn, weight, '\n',x[n]
                         weight=10
+                        end
                     addBirthtot=addBirthtot+weight
                     temp=np.array([particle])
                     temp_whoYaFrom=np.array([whoYaFrom[n]])
