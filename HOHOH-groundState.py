@@ -42,7 +42,6 @@ for iwfn in range(nReps):
     plt.subplot(312)
     plt.plot(np.arange(iwfn*propagationSteps-1,(iwfn+1)*propagationSteps)+equilibrationSteps,np.array(pop_list))
 
-
     Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
 
     descendantWeights=np.zeros((finalCoords.shape[0]))
@@ -51,7 +50,9 @@ for iwfn in range(nReps):
         print 'DW Rep Number',ides,
         v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size)
         descendantWeights=descendantWeights+descendantsTemp
+
     descendantWeights=descendantWeights/nRepsDW
+
     Wfn.exportCoords(inputx,Destination+'HOHOH-Ground-Eq-'+str(iwfn)+'.xyz',descendantWeights)
     Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-2.5,2.5),density=True,weights=descendantWeights)
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
@@ -66,7 +67,7 @@ plt.savefig(Destination+'Vref-Pop-histogram-GroundState.png')
 plt.show()
 
 print 'averaged v_ref:',averaged_vref
-print 'the average of average V_ref for the last 100 steps is',np.average(np.array(averaged_vref)), ' cm-1',
+print 'the average of average V_ref is',np.average(np.array(averaged_vref)), ' cm-1',
 print 'standard deviation', np.std(np.array(averaged_vref)), ' cm-1'
 print 'uncertainity is', (np.max(averaged_vref)-np.min(averaged_vref))/(2.0*np.sqrt(nReps))
 #for pop_list in list_of_pop_list:
