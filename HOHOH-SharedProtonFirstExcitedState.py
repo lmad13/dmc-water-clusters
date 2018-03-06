@@ -8,6 +8,11 @@ starttime=time.time()
 au2wn=219474.63
 nBins=51
 
+
+if len(sys.argv)<4:
+    print 'Usage: ./HOHOH-SharedProtonFirstExitedState.py N_size nReps descendantSteps nRepsDW'
+    end
+
 N_size=int(sys.argv[1])
 nReps=int(sys.argv[2])
 descendantSteps=int(sys.argv[3])

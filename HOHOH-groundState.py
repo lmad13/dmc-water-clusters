@@ -5,6 +5,11 @@ import DMCClusters as dmc
 import time
 import sys
 
+
+if len(sys.argv)<4:
+    print 'Usage: ./HOHOH-groundState.py N_size nReps descendantSteps nRepsDW'
+    end
+
 N_size=int(sys.argv[1])
 nReps=int(sys.argv[2])
 descendantSteps=int(sys.argv[3])
