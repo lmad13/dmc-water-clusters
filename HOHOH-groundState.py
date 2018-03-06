@@ -1,19 +1,31 @@
+#!/usr/bin/python
 import numpy as np
 import matplotlib.pyplot as plt
 import DMCClusters as dmc
 import time
+import sys
+
+N_size=int(sys.argv[1])
+nReps=int(sys.argv[2])
+descendantSteps=int(sys.argv[3])
+nRepsDW=int(sys.argv[4])
+
+equilibrationSteps=500
+propagationSteps=500
+
 starttime=time.time()
 au2wn=219474.63
 nBins=51
 AvePsi2Hist=np.zeros((nBins))
 averaged_vref=[]
 list_of_pop_list=[]
-N_size=2000
+
 Wfn=dmc.wavefunction('HOHOH', N_size)
 Destination='ResultsH3O2/'
+GatherExpectationRn=[]
 #Equilibration
 initialx=Wfn.x*1.1
-equilibrationSteps=1000
+
 print 'initial V', Wfn.molecule.V([initialx[0]])*au2wn
 print 'equilibrating for ', equilibrationSteps, 'steps (',equilibrationSteps*Wfn.dtau,' au)'
 v_ref_equilibration,pop_list_equilibration,equilibratedCoordinates,descendants=Wfn.propagate(initialx,equilibrationSteps,printCensus=True,initialPop=N_size)
@@ -24,10 +36,7 @@ plt.plot(np.arange(equilibrationSteps+1),np.array(v_ref_equilibration)*au2wn)
 plt.subplot(312)
 plt.plot(np.arange(equilibrationSteps+1),np.array(pop_list_equilibration))
 #Sampling of Psi
-propagationSteps=500
-descendantSteps=25
-nReps=5
-nRepsDW=5
+
 for iwfn in range(nReps):
     print '   REPETITION NUMBER: ', iwfn
     v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
@@ -48,12 +57,12 @@ for iwfn in range(nReps):
 
     for ides in range(nRepsDW):
         print 'DW Rep Number',ides,
-        v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size)
+        v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size,printCensus=False)
         descendantWeights=descendantWeights+descendantsTemp
 
     descendantWeights=descendantWeights/nRepsDW
 
-    Wfn.exportCoords(inputx,Destination+'HOHOH-Ground-Eq-'+str(iwfn)+'.xyz',descendantWeights)
+    #Wfn.exportCoords(inputx,Destination+'HOHOH-Ground-Eq-'+str(iwfn)+'.xyz',descendantWeights)
     Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-2.5,2.5),density=True,weights=descendantWeights)
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
     plt.subplot(313)
@@ -61,20 +70,30 @@ for iwfn in range(nReps):
     plt.plot(bin_center,Psi2Hist)
     AvePsi2Hist=AvePsi2Hist+Psi2Hist
     inputx=finalCoords
-    
-    endtime=time.time()
+
+    GatherExpectationRn.append(np.sum(Rn*Rn*descendantWeights)/np.sum(descendantWeights))
+    print 'Rn:',GatherExpectationRn[-1]
+endtime=time.time()
 plt.savefig(Destination+'Vref-Pop-histogram-GroundState.png')
-plt.show()
+plt.clf()
 
 print 'averaged v_ref:',averaged_vref
 print 'the average of average V_ref is',np.average(np.array(averaged_vref)), ' cm-1',
 print 'standard deviation', np.std(np.array(averaged_vref)), ' cm-1'
 print 'uncertainity is', (np.max(averaged_vref)-np.min(averaged_vref))/(2.0*np.sqrt(nReps))
+print '--------   Rn   --------' 
+print '   Average:',np.average(GatherExpectationRn),'\n   Standard Deviation:',np.std(GatherExpectationRn)
+print '   Uncertainity:',(np.max(GatherExpectationRn)-np.min(GatherExpectationRn))/(2.0*np.sqrt(nReps))
 #for pop_list in list_of_pop_list:
 #    plt.plot(pop_list)
 #plt.show()
 
-
+fileR2Data=open('R2Data-GroundState.data','a')
+fileR2Data.write('0   0 '+str(N_size)+'   '+str(propagationSteps)+'   '+str(nReps)+'   '+str(descendantSteps)+'   '+str(nRepsDW)+'      ')
+fileR2Data.write(str(np.average(averaged_vref))+'   '+str(np.std(averaged_vref))+'   '+str((np.max(averaged_vref)-np.min(averaged_vref))/(2.0*np.sqrt(nReps)))+'   ')
+fileR2Data.write(str(np.average(GatherExpectationRn))+'     '+str(np.std(GatherExpectationRn))+'     ')
+fileR2Data.write(str((np.max(GatherExpectationRn)-np.min(GatherExpectationRn))/(2.0*np.sqrt(nReps)))+'\n')
+fileR2Data.close()
 
 print 'that took', endtime-starttime, 'seconds and ', (endtime-starttime)/60.0 , 'minutes'
 
