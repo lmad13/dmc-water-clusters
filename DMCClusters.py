@@ -125,8 +125,9 @@ class wavefunction:
             #LASSIE MODE
             #DEATH BY PEF HOLES
             mask_not_holes=(v>0.0) #mask
+            inHole=(v<=0.0)
             mask_survive=np.logical_and(mask_survive,mask_not_holes)
-
+            if step%printRate==0 and printCensus: print 'Death by holes',np.sum(np.array(v<0.0).astype(int)),
             # removal of all walkers that cross and a random selection of walkers that are too close to the node
             if self.recrossing:
                 # m2=2*(massO+2*massH)*massConversionFactor
@@ -159,6 +160,7 @@ class wavefunction:
             P_exp_b=np.exp(-(v-v_ref)*self.dtau)-1.0
             if self.recrossing:
                 P_exp_b[crossed]=0.00000  #if it crossed, the probability that it gives birth should be zero
+            P_exp_b[inHole]=0.00000  #if it fell in a hole
 
             weight_P_b=P_exp_b.astype(int)
             P_b=P_exp_b-weight_P_b            #classically allowed region                            
@@ -178,10 +180,11 @@ class wavefunction:
                     #print 'weight for tiling:', weight, n
                     if weight>10:
                         #this really shouldn't happen                                    
-                        print 'weight is too big, resetting to 10'
+                        print 'weight of ',n,' is too big, resetting to 0'
                         print v[n]*au2wn,'<',v_ref*au2wn, weight, '\n',x[n]
-                        weight=10
-                        end
+                        print 'is it in a hole?',inHole[n], P_exp_b[n]
+                        weight=0
+                        
                     addBirthtot=addBirthtot+weight
                     temp=np.array([particle])
                     temp_whoYaFrom=np.array([whoYaFrom[n]])
@@ -226,7 +229,7 @@ class wavefunction:
 
         for anc in whoYaFrom:
             descendants[anc]=descendants[anc]+1
-
+        sys.stdout.flush()
         return  vRefList, population, x, descendants
     
 #wavefunction
