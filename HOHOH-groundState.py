@@ -103,10 +103,10 @@ print '   Uncertainity:',(np.max(GatherExpectationRn)-np.min(GatherExpectationRn
 print '--------   Rn^2  --------' 
 print '   Average:',np.average(GatherExpectationRn2),'\n   Standard Deviation:',np.std(GatherExpectationRn2)
 print '   Uncertainity:',(np.max(GatherExpectationRn2)-np.min(GatherExpectationRn2))/(2.0*np.sqrt(nReps))
-print '--------   Rn   --------' 
+print '--------   |Mu|  --------' 
 print '   Average:',np.average(GatherExpectationMagMu),'\n   Standard Deviation:',np.std(GatherExpectationMagMu)
 print '   Uncertainity:',(np.max(GatherExpectationMagMu)-np.min(GatherExpectationMagMu))/(2.0*np.sqrt(nReps))
-print '--------   Rn   --------' 
+print '--------   |Mu^2|  --------' 
 print '   Average:',np.average(GatherExpectationMagMu2),'\n   Standard Deviation:',np.std(GatherExpectationMagMu2)
 print '   Uncertainity:',(np.max(GatherExpectationMagMu2)-np.min(GatherExpectationMagMu2))/(2.0*np.sqrt(nReps))
 #for pop_list in list_of_pop_list:
