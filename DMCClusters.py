@@ -83,8 +83,10 @@ class wavefunction:
         coord=coord/au2ang
         return coord,descCoord
 
-    def propagate(self,x,nSteps,setV_ref=False,ConstantV_ref=0,printCensus=True,initialPop=0):
+    def propagate(self,x,nSteps,setV_ref=False,ConstantV_ref=0,printCensus=True,initialPop=0,testing=False):
         #print 'ready to propagate for',nSteps, 'steps on x (shaped:',x.shape,') '
+        if testing:
+            np.random.seed(0)
 
         if initialPop==0:#if it is the default value of zero...it needs to be set.
             initialPop=x.shape[0]
@@ -119,9 +121,15 @@ class wavefunction:
             Diff=N_r-P_d
             mask_survive=(Diff>0)
             nDeaths=np.sum(np.array(Diff<0).astype(int))
-            survivors=x[mask_survive]
+            #survivors=x[mask_survive]
             if step%printRate==0 and printCensus: print 'Census: Current Population:',self.currentPop,'Deaths:',nDeaths,
 
+            #LASSIE MODE
+            #DEATH BY PEF HOLES
+            mask_not_holes=(v>0.0) #mask
+            inHole=(v<=0.0)
+            mask_survive=np.logical_and(mask_survive,mask_not_holes)
+            if step%printRate==0 and printCensus: print 'Death by holes',np.sum(np.array(v<0.0).astype(int)),
             # removal of all walkers that cross and a random selection of walkers that are too close to the node
             if self.recrossing:
                 # m2=2*(massO+2*massH)*massConversionFactor
@@ -142,15 +150,19 @@ class wavefunction:
                 mask_survive_recross=(Diff>0)
                 tempRecrossCensus=np.sum(np.array(Diff<0).astype(int))
                 mask_survive=np.logical_and(mask_survive, mask_survive_recross)
-                survivors=x[mask_survive]            
-
                 if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ',tempRecrossCensus
             
-            #Creation of a random selection of walkers in the classically allowed region and who did not die by recrossing, so the survivors
             
+            survivors=x[mask_survive]            
+
+#Creation of a random selection of walkers in the classically allowed region and who did not die by recrossing, so the survivors
+        
+                
+    
             P_exp_b=np.exp(-(v-v_ref)*self.dtau)-1.0
             if self.recrossing:
                 P_exp_b[crossed]=0.00000  #if it crossed, the probability that it gives birth should be zero
+            P_exp_b[inHole]=0.00000  #if it fell in a hole
 
             weight_P_b=P_exp_b.astype(int)
             P_b=P_exp_b-weight_P_b            #classically allowed region                            
@@ -168,12 +180,13 @@ class wavefunction:
             for n,(particle,weight) in enumerate(zip(x,weight_P_b)):
                 if weight>0: #i.e. the dead can't reproduce                              
                     #print 'weight for tiling:', weight, n
-                    if weight>100:
-                        #this really shouldn't happen                                    
-                        print 'weight is too big, resetting to 10'
-                        print weight, v[n],'<',v_ref ,'\n',x[n]
-                        weight=1
-                        end
+                    if weight>10:
+                        #this really shouldn't happen                                   
+                        print 'weight of ',n,' is too big, resetting to 0'
+                        print v[n]*au2wn,'<',v_ref*au2wn, weight, '\n',x[n]
+                        print 'is it in a hole?',inHole[n], P_exp_b[n]
+                        weight=0
+
                     addBirthtot=addBirthtot+weight
                     temp=np.array([particle])
                     temp_whoYaFrom=np.array([whoYaFrom[n]])
@@ -218,7 +231,7 @@ class wavefunction:
 
         for anc in whoYaFrom:
             descendants[anc]=descendants[anc]+1
-
+        sys.stdout.flush()
         return  vRefList, population, x, descendants
     
 #wavefunction

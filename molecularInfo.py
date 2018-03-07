@@ -26,6 +26,7 @@ class molecule:
         self.pathDict=self.loadDict("paths.dict")
         self.potential=self.getPES()
         self.surfaceName="GroundState"
+        self.dipole=self.getDIPOLE()
     def setNodalSurface(self,surfaceName,side):
         self.surfaceName=surfaceName
         self.side=side
@@ -39,6 +40,16 @@ class molecule:
             print 'potential retreived for HOHOH. Be sure to feed one walker in at a time!'
         return potential
 
+    def getDIPOLE(self):
+        sys.path.insert(0,self.pathDict["dipolePath"+self.name])
+        import h3o2dms2 as dms
+        if self.name in DeprotonatedWaterDimer:
+            dms.predip()
+            dip=dms.mycalcdip
+        #since all dipole moment calculations need eckart rotation...loading the reference coordinates
+        self.refPos=self.loadRefCoord()
+        return dip
+            
     def loadDict(self,fileName):
         fileIn=open(fileName,'r')
         pathDict={}
@@ -46,12 +57,20 @@ class molecule:
             [key,element]=line.split()
             pathDict[key]=element
         return pathDict
-    
+    def loadRefCoord(self):
+        if self.name in DeprotonatedWaterDimer:
+            coords=np.array([[ 0.2981678882048853 ,   -2.4557992072743176E-002,  -5.5485232545510215E-002],
+                             [ -2.354423404994569 ,     0.000000000000000     ,    0.000000000000000],
+                             [ -2.858918674095194 ,     1.111268022307282     ,   -1.352651141853729],
+                             [  2.354423404994569 ,     0.000000000000000     ,    0.000000000000000],
+                             [  2.671741580470489 ,     1.136107563104921     ,    1.382886181959795]])
+        return coords
+
     def V(self,x):
         v=np.array([self.potential(cart_in) for cart_in in x])
-        for n,pot_mol in enumerate(v):
-            if np.isnan(pot_mol):
-                print 'gosh, the ', n,'th is a problem:\n', x[n]
+        #for n,pot_mol in enumerate(v):
+        #    if np.isnan(pot_mol):
+        #        print 'gosh, the ', n,'th is a problem:\n', x[n]
 
         if self.surfaceName=='SharedProton':
             r=self.calcRn(x)
@@ -63,6 +82,68 @@ class molecule:
                 donothing=1
         return v
 
+    def calcDipole(self,x):
+        eckRotx=self.eckartRotate(x)
+        dipoleVectors=self.dipole(eckRotx)
+        
+        return dipoleVectors
+
+
+    def eckartRotate(self,pos,specialCond=False):
+        if len(pos.shape)<3:
+            pos=np.array([pos])
+        nMolecules=pos.shape[0]
+        Fvec=np.zeros((3,3))
+        Fvec2=np.zeros((3,3))
+        newCoord=np.zeros(pos.shape)
+        rHC=np.zeros((nMolecules,3))
+        rHCprime=np.zeros((nMolecules,3))
+    
+        #Center of Mass     
+        mass=self.get_mass()
+        com=np.dot(mass,pos)/np.sum(mass)
+        rs=0.000
+        rsprime=0.000
+
+        #First Translate:                                                                                     
+        ShiftedMolecules=pos-com[:,np.newaxis,:]
+
+        #Equation 3.1                                                                                         
+        for moli,molecule in enumerate(ShiftedMolecules):
+            Fvec=np.zeros((3,3))
+            for atom,massa,eckatom in zip(molecule,mass,self.refPos):
+                Fvec=Fvec+massa*np.outer(eckatom,atom)
+            #F from eqn 3.4b                                                                                  
+            FF=np.dot(Fvec,Fvec.transpose())
+            #Diagonalize FF                                                                                   
+            sortEigValsF,sortEigVecF=np.linalg.eigh(FF)
+            sortEigVecFT=-sortEigVecF.transpose()
+            if specialCond:
+                print 'special condition activated!'
+                print 'eigenvals \n',sortEigValsF
+                print 'vect \n',sortEigVecFT
+            if len(np.where(sortEigValsF<=0)[0])!=0:
+                #sortEigVecFT=np.abs(sortEigVecFT)                                                            
+                sortEigValsF=np.abs(sortEigValsF)
+                invRootDiagF=sortEigValsF
+                for e,element in enumerate(sortEigValsF):
+                    if element>0:
+                        invRootDiagF[e]=1.0/np.sqrt(element)
+            #Get the inverse sqrt of diagonalized(FF)                                                         
+            else:
+                invRootDiagF=1.0/np.sqrt(sortEigValsF)
+            # F^{-1/2}                                                                                         
+            invRootF=np.dot(invRootDiagF[np.newaxis,:]*-sortEigVecF,sortEigVecFT)
+            eckVecs=np.dot(Fvec.transpose(),invRootF)
+            newCoord[moli]= np.dot(molecule,eckVecs)
+
+            if len(np.where(np.isnan(newCoord[moli]))[0])!=0:
+                print 'whaaaaaT?! nan',np.where(np.isnan(newCoord[moli])),'\ncoords:\n',newCoord[moli]
+                print '   molecule number:',moli,'\n   sortEigValsF: \n', sortEigValsF,'\n   molecule: \n', molecule, 
+                print '\n   eckVecs \n', eckVecs
+                octopus
+
+        return newCoord
 
 
     def getInitialCoordinates(self):
@@ -71,11 +152,24 @@ class molecule:
         if self.name in DeprotonatedWaterDimer:
             coords=np.array([
                     [   0.000000000000000 ,  0.000000000000000 ,  0.000000000000000],
-                    [  -2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
-                    [  -2.749724314110769 ,  1.765018349357672 ,  0.000000000000000],
-                    [   2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
-                    [   2.749724314110769 ,  1.765018349357672 ,  0.000000000000000]
+                    [  2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
+                    [  2.749724314110769 ,  -1.765018349357672 ,  0.000000000000000],
+                    [   -2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
+                    [   -2.749724314110769 ,  -1.765018349357672 ,  0.000000000000000]
                     ])
+            coords=np.array([
+                    [0.0000000,   0.000000000000000 ,  0.000000000000000  ],
+                    [0.0000000,  2.306185590098382 ,  0.000000000000000   ],
+                    [0.0000000,  2.749724314110769 ,  -1.765018349357672  ],
+                    [0.0000000,   -2.306185590098382 ,  0.000000000000000 ],
+                    [0.0000000,   -2.749724314110769 ,  -1.765018349357672]
+                    ])
+#            coords=np.array([[ 0.26591125,  0.07072797, -0.02256279],
+#WW         WW                [ 0.55610034,  2.83109547,  0.14883552],
+#  W       W                  [ 1.50122114,  1.22631416, -0.59092507],
+#   W  W  W                   [-0.11962985, -1.87021212,  0.22794889],
+#    W   W                    [ 1.20503929, -0.77837156,  0.71051114]])
+            
             self.names=['H','O','H','O','H']
         else:
             print 'not implemented!!'
