@@ -83,8 +83,10 @@ class wavefunction:
         coord=coord/au2ang
         return coord,descCoord
 
-    def propagate(self,x,nSteps,setV_ref=False,ConstantV_ref=0,printCensus=True,initialPop=0):
+    def propagate(self,x,nSteps,setV_ref=False,ConstantV_ref=0,printCensus=True,initialPop=0,testing=False):
         #print 'ready to propagate for',nSteps, 'steps on x (shaped:',x.shape,') '
+        if testing:
+            np.random.seed(0)
 
         if initialPop==0:#if it is the default value of zero...it needs to be set.
             initialPop=x.shape[0]
