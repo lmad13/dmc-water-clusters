@@ -168,11 +168,12 @@ class wavefunction:
             for n,(particle,weight) in enumerate(zip(x,weight_P_b)):
                 if weight>0: #i.e. the dead can't reproduce                              
                     #print 'weight for tiling:', weight, n
-                    if weight>10:
+                    if weight>100:
                         #this really shouldn't happen                                    
                         print 'weight is too big, resetting to 10'
-                        print x[n],v(n),'<',v_ref, -(v(n)-v_ref)
-                        weight=10
+                        print weight, v[n],'<',v_ref ,'\n',x[n]
+                        weight=1
+                        end
                     addBirthtot=addBirthtot+weight
                     temp=np.array([particle])
                     temp_whoYaFrom=np.array([whoYaFrom[n]])
