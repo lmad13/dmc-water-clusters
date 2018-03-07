@@ -79,16 +79,15 @@ for iwfn in range(nReps):
     plt.plot(bin_center,Psi2Hist)
     AvePsi2Hist=AvePsi2Hist+Psi2Hist
     inputx=finalCoords
-    print 'Dipole sample',Dipole[0:5]
-    print 'norm',np.linalg.norm(Dipole[0:5],axis=0)
-    print 'DW', descendantWeights[0:5]
+
     GatherExpectationRn2.append(np.sum(Rn*Rn*descendantWeights)/np.sum(descendantWeights))
     GatherExpectationRn.append(np.sum(Rn*descendantWeights)/np.sum(descendantWeights))
     GatherExpectationMagMu.append(np.sum(np.linalg.norm(Dipole,axis=1)*descendantWeights)/np.sum(descendantWeights))
     GatherExpectationMagMu2.append(np.sum(np.linalg.norm(Dipole,axis=1)**2*descendantWeights)/np.sum(descendantWeights))
-    print 'Rn^2:',GatherExpectationRn2[-1]
-    print 'Rn:  ',GatherExpectationRn[-1]
-    print 'Mu^2:',GatherExpectationMagMu2[-1]
+    print ''
+    print 'Rn^2:',GatherExpectationRn2[-1],
+    print 'Rn:  ',GatherExpectationRn[-1],
+    print 'Mu^2:',GatherExpectationMagMu2[-1],
     print 'Mu:  ',GatherExpectationMagMu[-1]
 
 endtime=time.time()
