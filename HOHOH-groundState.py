@@ -22,6 +22,9 @@ starttime=time.time()
 au2wn=219474.63
 nBins=51
 AvePsi2Hist=np.zeros((nBins))
+AvePsi2DipHist=np.zeros((nBins))
+AvePsi2R2Hist=np.zeros((nBins))
+AvePsi2Dip2Hist=np.zeros((nBins))
 averaged_vref=[]
 list_of_pop_list=[]
 
@@ -31,6 +34,7 @@ GatherExpectationRn=[]
 GatherExpectationRn2=[]
 GatherExpectationMagMu=[]
 GatherExpectationMagMu2=[]
+
 #Equilibration
 initialx=Wfn.x*1.1
 
@@ -38,6 +42,9 @@ print 'initial V', Wfn.molecule.V([initialx[0]])*au2wn
 print 'equilibrating for ', equilibrationSteps, 'steps (',equilibrationSteps*Wfn.dtau,' au)'
 v_ref_equilibration,pop_list_equilibration,equilibratedCoordinates,descendants=Wfn.propagate(initialx,equilibrationSteps,printCensus=True,initialPop=N_size)
 inputx=equilibratedCoordinates
+
+parameterString=str(N_size)+'-'+str(nReps)+'-'+str(descendantSteps)+'-'+str(nRepsDW)
+plotFileName=Destination+'Vref-Pop-histogram-Ground'+parameterString
 plt.figure(1)
 plt.subplot(311)
 plt.plot(np.arange(equilibrationSteps+1),np.array(v_ref_equilibration)*au2wn)
@@ -75,9 +82,22 @@ for iwfn in range(nReps):
     Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-2.5,2.5),density=True,weights=descendantWeights)
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
     plt.subplot(313)
-
     plt.plot(bin_center,Psi2Hist)
     AvePsi2Hist=AvePsi2Hist+Psi2Hist
+
+    Psi2R2Hist,bin_edges_r2=np.histogram(Rn**2, bins=nBins, range=(-6.5,6.5),density=True,weights=descendantWeights)
+    bin_center_r2=(bin_edges_r2[:-1]+bin_edges_r2[1:])/2.0
+    AvePsi2R2Hist=AvePsi2R2Hist+Psi2R2Hist
+
+    Psi2DipHist,bin_edges_dip=np.histogram(np.linalg.norm(Dipole,axis=1), bins=nBins, range=(0,2.5),density=True,weights=descendantWeights)
+    bin_center_dip=(bin_edges_dip[:-1]+bin_edges_dip[1:])/2.0
+    AvePsi2DipHist=AvePsi2DipHist+Psi2DipHist
+
+    Psi2Dip2Hist,bin_edges_dip2=np.histogram(np.linalg.norm(Dipole,axis=1)**2, bins=nBins, range=(0,8.0),density=True,weights=descendantWeights)
+    bin_center_dip2=(bin_edges_dip2[:-1]+bin_edges_dip2[1:])/2.0
+    AvePsi2Dip2Hist=AvePsi2Dip2Hist+Psi2Dip2Hist
+
+
     inputx=finalCoords
 
     GatherExpectationRn2.append(np.sum(Rn*Rn*descendantWeights)/np.sum(descendantWeights))
@@ -91,9 +111,13 @@ for iwfn in range(nReps):
     print 'Mu:  ',GatherExpectationMagMu[-1]
 
 endtime=time.time()
-plt.savefig(Destination+'Vref-Pop-histogram-GroundState.png')
-plt.clf()
 
+plt.savefig(plotFileName+'.png')
+plt.clf()
+np.savetxt(Destination+'R-histogram-Ground'+parameterString+'.data',zip(bin_center,AvePsi2Hist/nReps))
+np.savetxt(Destination+'R2-histogram-Ground'+parameterString+'.data',zip(bin_center_r2,AvePsi2R2Hist/nReps))
+np.savetxt(Destination+'Dipole-histogram-Ground'+parameterString+'.data',zip(bin_center_dip,AvePsi2DipHist/nReps))
+np.savetxt(Destination+'Dipole2-histogram-Ground'+parameterString+'.data',zip(bin_center_dip2,AvePsi2Dip2Hist/nReps))
 print 'averaged v_ref:',averaged_vref
 print 'the average of average V_ref is',np.average(np.array(averaged_vref)), ' cm-1',
 print 'standard deviation', np.std(np.array(averaged_vref)), ' cm-1'
