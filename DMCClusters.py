@@ -66,11 +66,12 @@ class wavefunction:
         fileout.close()
         return
     def loadCoords(self,fileName):
+        print 'Loading: ', fileName
         filein=open(fileName,'r')
-        fdata=filein.readlines()
-        nMolecules=len(filedata)/(self.naAtoms+3)
+        filedata=filein.readlines()
+        nMolecules=len(filedata)/(self.nAtoms+3)
         repeatUnit=self.nAtoms+3
-        coord=np.zeros((nMolecules,nAtoms,3))
+        coord=np.zeros((nMolecules,self.nAtoms,3))
         descCoord=np.zeros((nMolecules))
         for ln in range(nMolecules):
             coordstemp=[]
@@ -79,7 +80,7 @@ class wavefunction:
                 coordstemp.append(float(filedata[ln*repeatUnit+2+an].split()[2]))
                 coordstemp.append(float(filedata[ln*repeatUnit+2+an].split()[3]))
             coord[ln,:,:]=np.reshape(coordstemp,(self.nAtoms,3))
-            descCoord=float(filedata[ln*repeatUnit+1].split()[0])
+            descCoord[ln]=float(filedata[ln*repeatUnit+1].split()[0])
         coord=coord/au2ang
         return coord,descCoord
 
