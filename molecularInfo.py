@@ -266,6 +266,7 @@ class molecule:
             r4=self.bondlength(x,atom1=1, atom2=6)
             return 0.5*(r1+r2-r3-r4)
 
+
     def calcRn(self,x):
         if self.surfaceName=='SharedProton':
             return self.calcSharedProtonDisplacement(x)
