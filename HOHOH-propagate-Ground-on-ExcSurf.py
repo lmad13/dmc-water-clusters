@@ -29,6 +29,9 @@ averaged_vref=[]
 list_of_pop_list=[]
 
 Wfn=dmc.wavefunction('HOHOH', N_size)
+
+WfnFixedNode=dmc.wavefunction('HOHOH',N_size)
+WfnFixedNode.setNodalSurface('SharedProton',side='Both')
 Destination='ResultsH3O2-Tau/'
 GatherExpectationRn=[]
 GatherExpectationRn2=[]
@@ -44,7 +47,7 @@ v_ref_equilibration,pop_list_equilibration,equilibratedCoordinates,descendants=W
 inputx=equilibratedCoordinates
 
 parameterString=str(N_size)+'-'+str(nReps)+'-'+str(descendantSteps)+'-'+str(nRepsDW)
-plotFileName=Destination+'Vref-Pop-histogram-Ground'+parameterString
+plotFileName=Destination+'Vref-Pop-histogram-Ground-PropagatedOnFixedNode-'+parameterString
 plt.figure(1)
 plt.subplot(311)
 plt.plot(np.arange(equilibrationSteps+1),np.array(v_ref_equilibration)*au2wn)
@@ -73,12 +76,12 @@ for iwfn in range(nReps):
         descendantWeights=np.zeros((finalCoords.shape[0]))
         for ides in range(nRepsDW):
             print 'DW Rep Number',ides,
-            v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size,printCensus=False)
+            v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=WfnFixedNode.propagate(finalCoords,descendantSteps,initialPop=N_size,printCensus=False)
             descendantWeights=descendantWeights+descendantsTemp
         descendantWeights=descendantWeights/nRepsDW
-        inputx=finalCoords
+        #inputx=finalCoords
         parameterString=str(N_size)+'-'+str(nReps)+'-'+str(tauDW)+'-'+str(nRepsDW)
-        Wfn.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-Ground-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
+        Wfn.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-Ground-PropagatedOn-FixedNode-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
 
 
 

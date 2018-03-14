@@ -15,7 +15,7 @@ nReps=int(sys.argv[2])
 descendantSteps=int(sys.argv[3])
 nRepsDW=int(sys.argv[4])
 
-equilibrationSteps=500
+equilibrationSteps=0
 propagationSteps=500
 
 starttime=time.time()
@@ -29,27 +29,25 @@ averaged_vref=[]
 list_of_pop_list=[]
 
 Wfn=dmc.wavefunction('HOHOH', N_size)
+Wfn.setNodalSurface('SharedProton',side='Both')
 Destination='ResultsH3O2-Tau/'
 GatherExpectationRn=[]
 GatherExpectationRn2=[]
 GatherExpectationMagMu=[]
 GatherExpectationMagMu2=[]
 
-#Equilibration
+
 initialx=Wfn.x*1.1
 
-print 'initial V', Wfn.molecule.V([initialx[0]])*au2wn
-print 'equilibrating for ', equilibrationSteps, 'steps (',equilibrationSteps*Wfn.dtau,' au)'
-v_ref_equilibration,pop_list_equilibration,equilibratedCoordinates,descendants=Wfn.propagate(initialx,equilibrationSteps,printCensus=True,initialPop=N_size)
-inputx=equilibratedCoordinates
+#print 'initial V', Wfn.molecule.V([initialx[0]])*au2wn
+#print 'equilibrating for ', equilibrationSteps, 'steps (',equilibrationSteps*Wfn.dtau,' au)'
+#v_ref_equilibration,pop_list_equilibration,equilibratedCoordinates,descendants=Wfn.propagate(initialx,equilibrationSteps,printCensus=True,initialPop=N_size)
+inputx=initialx
 
 parameterString=str(N_size)+'-'+str(nReps)+'-'+str(descendantSteps)+'-'+str(nRepsDW)
-plotFileName=Destination+'Vref-Pop-histogram-Ground'+parameterString
+plotFileName=Destination+'Vref-Pop-histogram-Excited'+parameterString
 plt.figure(1)
-plt.subplot(311)
-plt.plot(np.arange(equilibrationSteps+1),np.array(v_ref_equilibration)*au2wn)
-plt.subplot(312)
-plt.plot(np.arange(equilibrationSteps+1),np.array(pop_list_equilibration))
+
 #Sampling of Psi
 
 for iwfn in range(nReps):
@@ -60,14 +58,14 @@ for iwfn in range(nReps):
     list_of_pop_list.append(pop_list)
     plt.figure(1)
     plt.subplot(311)
-    plt.plot(np.arange(iwfn*propagationSteps-1,(iwfn+1)*propagationSteps)+equilibrationSteps,np.array(v_ref_list)*au2wn)
+    plt.plot(np.arange(iwfn*propagationSteps-1,(iwfn+1)*propagationSteps),np.array(v_ref_list)*au2wn)
 
     plt.figure(1)
     plt.subplot(312)
-    plt.plot(np.arange(iwfn*propagationSteps-1,(iwfn+1)*propagationSteps)+equilibrationSteps,np.array(pop_list))
+    plt.plot(np.arange(iwfn*propagationSteps-1,(iwfn+1)*propagationSteps),np.array(pop_list))
 
-    Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
-    Dipole=Wfn.molecule.calcDipole(finalCoords)
+    #Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
+    #Dipole=Wfn.molecule.calcDipole(finalCoords)
 
     for tauDW in [descendantSteps,2*descendantSteps,3*descendantSteps,4*descendantSteps,5*descendantSteps]:
         descendantWeights=np.zeros((finalCoords.shape[0]))
@@ -76,9 +74,9 @@ for iwfn in range(nReps):
             v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size,printCensus=False)
             descendantWeights=descendantWeights+descendantsTemp
         descendantWeights=descendantWeights/nRepsDW
-        inputx=finalCoords
+        ##inputx=finalCoords
         parameterString=str(N_size)+'-'+str(nReps)+'-'+str(tauDW)+'-'+str(nRepsDW)
-        Wfn.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-Ground-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
+        Wfn.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-ExcitedRn-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
 
 
 

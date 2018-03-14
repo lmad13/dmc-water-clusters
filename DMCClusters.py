@@ -182,12 +182,12 @@ class wavefunction:
                 if weight>0: #i.e. the dead can't reproduce                              
                     #print 'weight for tiling:', weight, n
                     if weight>10:
-                        #this really shouldn't happen                                    
+                        #this really shouldn't happen                                   
                         print 'weight of ',n,' is too big, resetting to 0'
                         print v[n]*au2wn,'<',v_ref*au2wn, weight, '\n',x[n]
                         print 'is it in a hole?',inHole[n], P_exp_b[n]
                         weight=0
-                        
+
                     addBirthtot=addBirthtot+weight
                     temp=np.array([particle])
                     temp_whoYaFrom=np.array([whoYaFrom[n]])

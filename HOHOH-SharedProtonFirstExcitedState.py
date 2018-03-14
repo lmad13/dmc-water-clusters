@@ -24,7 +24,6 @@ propagationSteps=500
 AvePsi2Hist=np.zeros((nBins))
 averaged_vref=[]
 list_of_pop_list=[]
-
 Wfn=dmc.wavefunction('HOHOH', N_size)
 Wfn.setNodalSurface('SharedProton',side='Both')
 Destination='ResultsH3O2/'    
