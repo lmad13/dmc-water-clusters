@@ -4,19 +4,16 @@ import matplotlib.pyplot as plt
 import DMCClusters as dmc
 import time
 import sys
-
+import glob
 
 if len(sys.argv)<4:
-    print 'Usage: ./HOHOH-groundState.py N_size nReps descendantSteps nRepsDW'
+    print 'Usage: ./HOHOH-groundState.py N_size descendantSteps nRepsDW'
     end
 
 N_size=int(sys.argv[1])
-nReps=int(sys.argv[2])
-descendantSteps=int(sys.argv[3])
-nRepsDW=int(sys.argv[4])
 
-equilibrationSteps=500
-propagationSteps=500
+descendantSteps=int(sys.argv[2])
+nRepsDW=int(sys.argv[3])
 
 starttime=time.time()
 au2wn=219474.63
@@ -35,15 +32,29 @@ GatherExpectationRn2=[]
 GatherExpectationMagMu=[]
 GatherExpectationMagMu2=[]
 GatherVarianceRn=[]
+fileNames=glob.glob('Wfn-HOHOH/HOHOH-Ground-'+str(N_size)+'-*.xyz')
+print 'I will read:', fileNames
 
-parameterString=str(N_size)+'-'+str(nReps)+'-'+str(descendantSteps)+'-'+str(nRepsDW)
-for iwfn in range(nReps):
-    finalCoords,descendantWeights=Wfn.loadCoords('Wfn-HOHOH/HOHOH-Ground-'+parameterString+'Eq-'+str(iwfn)+'.xyz')
+for iwfn,fileName in enumerate(fileNames):
+    finalCoords,descendantWeightsFromFile=Wfn.loadCoords(fileName)
     
+    descendantWeights=np.zeros((finalCoords.shape[0]))
+    for ides in range(nRepsDW):
+        print 'DW Rep Number',ides,
+        v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size,printCensus=False)
+        descendantWeights=descendantWeights+descendantsTemp
+
+    descendantWeights=descendantWeights/nRepsDW
+    fileNameList=fileName.split('-')
+    newFileName='Wfn-HOHOH/HOHOH-Ground-'+str(N_size)+
+
+Wfn-HOHOH/HOHOH-Ground-20000-5-100-5Eq-4.xyz
+    
+    Wfn.exportCoords(finalCoords,newFileName,descendantWeights)
+
     #print '<V_ref>', np.average(Wfn.molecule.V(finalCoords)*au2wn)
     Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
     Dipole=Wfn.molecule.calcDipole(finalCoords)
-
 
     Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-2.5,2.5),density=True,weights=descendantWeights)
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
@@ -101,4 +112,4 @@ plt.show()
 
 
 
-print 'done!'
+print 'All done!  That took',endtime-starttime/60.0, 'minutes'

@@ -248,6 +248,15 @@ class molecule:
 
         return mass
     
+    def calcOHBondLenghts(self,x):
+        if self.name in DeprotonatedWaterDimer:
+            OH1=self.bondlength(x,atom1=1, atom2=2)
+            OH2=self.bondlength(x,atom1=3, atom2=4)
+            invSqrt2=1.0/np.sqrt(2.0)
+            OHSym=invSqrt2*(OH1+OH2)
+            OHAsym=invSqrt2*(OH1-OH2)
+            return OH1, OH2, OHSym, OHAsym
+
     def calcSharedProtonDisplacement(self,x):
         if self.name in ProtonatedWaterDimer:
             r1=self.bondlength(x,atom1=2, atom2=1)
