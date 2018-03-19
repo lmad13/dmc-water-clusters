@@ -29,7 +29,7 @@ averaged_vref=[]
 list_of_pop_list=[]
 
 Wfn=dmc.wavefunction('HOHOH', N_size)
-Destination='ResultsH3O2-Tau/'
+Destination='ResultsH3O2/'
 GatherExpectationRn=[]
 GatherExpectationRn2=[]
 GatherExpectationMagMu=[]
@@ -69,18 +69,16 @@ for iwfn in range(nReps):
     Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
     Dipole=Wfn.molecule.calcDipole(finalCoords)
 
-    for tauDW in [descendantSteps,2*descendantSteps,3*descendantSteps,4*descendantSteps,5*descendantSteps]:
-        descendantWeights=np.zeros((finalCoords.shape[0]))
-        for ides in range(nRepsDW):
-            print 'DW Rep Number',ides,
-            v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size,printCensus=False)
-            descendantWeights=descendantWeights+descendantsTemp
-        descendantWeights=descendantWeights/nRepsDW
-        inputx=finalCoords
-        parameterString=str(N_size)+'-'+str(nReps)+'-'+str(tauDW)+'-'+str(nRepsDW)
-        Wfn.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-Ground-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
+    descendantWeights=np.zeros((finalCoords.shape[0]))
 
+    for ides in range(nRepsDW):
+        print 'DW Rep Number',ides,
+        v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size,printCensus=False)
+        descendantWeights=descendantWeights+descendantsTemp
 
+    descendantWeights=descendantWeights/nRepsDW
+    inputx=finalCoords
+    Wfn.exportCoords(finalCoords,'Wfn-HOHOH/HOHOH-Ground-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
 
 endtime=time.time()
 

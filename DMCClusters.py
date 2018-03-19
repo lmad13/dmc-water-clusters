@@ -36,6 +36,7 @@ class wavefunction:
         self.side=side # Right: x>node
         self.molecule.setNodalSurface(self.surfaceName,self.side)
         self.recrossing=True
+
     def set_dtau(self):
         self.dtau=10.0
         print 'dtau is ', self.dtau, 'imaginary atomic time units'
@@ -66,7 +67,7 @@ class wavefunction:
         fileout.close()
         return
     def loadCoords(self,fileName):
-        print 'Loading: ', fileName
+        #print 'Loading: ', fileName
         filein=open(fileName,'r')
         filedata=filein.readlines()
         nMolecules=len(filedata)/(self.nAtoms+3)

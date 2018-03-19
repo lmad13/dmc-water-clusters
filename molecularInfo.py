@@ -73,10 +73,22 @@ class molecule:
         #        print 'gosh, the ', n,'th is a problem:\n', x[n]
 
         if self.surfaceName=='SharedProton':
-            r=self.calcRn(x)
+
             if self.side=='Right':
+                r=self.calcRn(x)
                 v[(r<0)]=1000.00
             elif self.side=='Left':
+                r=self.calcRn(x)
+                v[(r>0)]=1000.00
+            else:
+                donothing=1
+        elif self.surfaceName=='OHStretchAnti':
+
+            if self.side=='Right':
+                r=self.calcStretchAnti(x)
+                v[(r<0)]=1000.00
+            elif self.side=='Left':
+                r=self.calcStretchAnti(x)
                 v[(r>0)]=1000.00
             else:
                 donothing=1
@@ -222,15 +234,18 @@ class molecule:
 
             mass= 1.0/g
 
-        elif self.name in DeprotonatedWaterDimer and self.state==1:
-
+        elif self.name in DeprotonatedWaterDimer and self.surfaceName=='SharedProton' and self.state==1:
             U=x[:,0,:]-x[:,1,:]
             V=x[:,0,:]-x[:,2,:]
-
             magU=np.sqrt(U[:,0]**2+U[:,1]**2+U[:,2]**2)
             magV=np.sqrt(V[:,0]**2+V[:,1]**2+V[:,2]**2)
             costheta= np.diag(np.dot(U,V.T))/(magU*magV)
             mass=1.0/(2.0*((1.0/(massOamu))+((1-costheta)/(massHamu))))
+
+        elif self.name in DeprotonatedWaterDimer and self.surfaceName=='OHStretchAnti' and self.state==1:
+
+            g=(2.0/massHamu)+ (2.0/massOamu)
+            mass=1.0/g
 
         elif self.name in ProtonatedWaterDimer and self.state==0:
             m2=2*(massO)*conversionFactor
@@ -275,12 +290,25 @@ class molecule:
             r4=self.bondlength(x,atom1=1, atom2=6)
             return 0.5*(r1+r2-r3-r4)
 
+    def calcStretchAnti(self,x):
+        if self.name in DeprotonatedWaterDimer:
+            r1=self.bondlength(x,atom1=1,atom2=2)
+            r2=self.bondlength(x,atom1=3,atom2=4)
+            return np.sqrt(2.0)*(r1-r2)
+
+    def calcStretchSym(self,x):
+        if self.name in DeprotonatedWaterDimer:
+            r1=self.bondlength(x,atom1=1,atom2=2)
+            r2=self.bondlength(x,atom1=3,atom2=4)
+            return np.sqrt(2.0)*(r1+r2)
 
     def calcRn(self,x):
         if self.surfaceName=='SharedProton':
             return self.calcSharedProtonDisplacement(x)
         elif self.surfaceName=='StretchAntiIn':
             return self.calcStretchAntiIn(x)
+        elif self.surfaceName=='OHStretchAnti':
+            return self.calcStretchAnti(x)
 
 
     def bondlength(self,pos,atom1=1,atom2=2):
