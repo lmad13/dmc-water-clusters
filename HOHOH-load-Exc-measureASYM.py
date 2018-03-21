@@ -40,14 +40,14 @@ GatherExpectationOH=[]
 
 parameterString=str(N_size)+'-'+str(nReps)+'-'+str(descendantSteps)+'-'+str(nRepsDW)
 for iwfn in range(nReps):
-    finalCoords,descendantWeights=Wfn.loadCoords('Wfn-HOHOH-Tau/HOHOH-Ground-'+parameterString+'Eq-'+str(iwfn)+'.xyz')
+    finalCoords,descendantWeights=Wfn.loadCoords('Wfn-HOHOH-Tau/HOHOH-ExcitedStretchAnti-'+parameterString+'Eq-'+str(iwfn)+'.xyz')
     
     #print '<V_ref>', np.average(Wfn.molecule.V(finalCoords)*au2wn)
     Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
     Dipole=Wfn.molecule.calcDipole(finalCoords)
 
 
-    Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-2.5,2.5),density=True,weights=descendantWeights)
+    Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-5.0,5.0),density=True,weights=descendantWeights)
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
     plt.subplot(414)
     plt.plot(bin_center,Psi2Hist)
@@ -66,8 +66,8 @@ for iwfn in range(nReps):
     AvePsi2Dip2Hist=AvePsi2Dip2Hist+Psi2Dip2Hist
 
     OH1,OH2,OHSym, OHAsym=Wfn.molecule.calcOHBondLenghts(finalCoords)
-    Psi2OH1,bin_edges_OH=np.histogram(OH1, bins=nBins, range=(0,2.5),density=True,weights=descendantWeights)
-    Psi2OH2,bin_edges_OH=np.histogram(OH2, bins=nBins, range=(0,2.5),density=True,weights=descendantWeights)
+    Psi2OH1,bin_edges_OH=np.histogram(OH1, bins=nBins, range=(1.5,4.5),density=True,weights=descendantWeights)
+    Psi2OH2,bin_edges_OH=np.histogram(OH2, bins=nBins, range=(1.5,4.5),density=True,weights=descendantWeights)
     Psi2OHSym,bin_edges_OH_sym=np.histogram(OHSym, bins=nBins, range=(0,5.0),density=True,weights=descendantWeights)
     Psi2OHAsym,bin_edges_OH_asym=np.histogram(OHAsym, bins=nBins, range=(-2.0,2.0),density=True,weights=descendantWeights)
 

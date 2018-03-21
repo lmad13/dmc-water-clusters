@@ -49,6 +49,15 @@ class wavefunction:
             pathDict[key]=element
         return pathDict
 
+    def exchange(self,x, listOfExchanges):
+        xprime=1.0*x
+        for (exAtom1,exAtom2) in listOfExchanges:
+            print 'exchanging atom #',exAtom1,'with atom #',exAtom2
+            temp=1.0*xprime[:,exAtom1]
+            xprime[:,exAtom1]=xprime[:,exAtom2]*1.0
+            xprime[:,exAtom2]=temp
+        return xprime
+
     def diffuse(self):
         dx=np.zeros((self.currentPop,self.nAtoms,self.nDim))
         for atom in range(self.nAtoms):
@@ -150,9 +159,11 @@ class wavefunction:
                 
                 Diff=N_r-P_recrossDeath
                 mask_survive_recross=(Diff>0)
+                mask_died_by_recrossing=(Diff<0)
                 tempRecrossCensus=np.sum(np.array(Diff<0).astype(int))
                 mask_survive=np.logical_and(mask_survive, mask_survive_recross)
-                if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ',tempRecrossCensus
+                if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ',tempRecrossCensus, 'crossed',np.sum(crossed.astype(int))
+                #if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ', newDist[mask_died_by_recrossing]
             
             
             survivors=x[mask_survive]            

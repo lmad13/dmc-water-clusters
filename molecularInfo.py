@@ -6,6 +6,7 @@ global massO
 massH=1.00782503223
 massO=15.99491561957
 massConversionFactor=1.000000000000000000/6.02213670000e23/9.10938970000e-28#1822.88839 
+ang2bohr=1.88973
 global Water
 Water={'H2O', 'water', 'HOH', 'h2o'}
 global WaterDimer
@@ -59,12 +60,13 @@ class molecule:
         return pathDict
     def loadRefCoord(self):
         if self.name in DeprotonatedWaterDimer:
-            coords=np.array([[ 0.2981678882048853 ,   -2.4557992072743176E-002,  -5.5485232545510215E-002],
+            coordsMin=np.array([[ 0.2981678882048853 ,   -2.4557992072743176E-002,  -5.5485232545510215E-002],
                              [ -2.354423404994569 ,     0.000000000000000     ,    0.000000000000000],
                              [ -2.858918674095194 ,     1.111268022307282     ,   -1.352651141853729],
                              [  2.354423404994569 ,     0.000000000000000     ,    0.000000000000000],
                              [  2.671741580470489 ,     1.136107563104921     ,    1.382886181959795]])
-        return coords
+
+        return coordsMin
 
     def V(self,x):
         v=np.array([self.potential(cart_in) for cart_in in x])
@@ -87,9 +89,11 @@ class molecule:
             if self.side=='Right':
                 r=self.calcStretchAnti(x)
                 v[(r<0)]=1000.00
+                
             elif self.side=='Left':
                 r=self.calcStretchAnti(x)
                 v[(r>0)]=1000.00
+                
             else:
                 donothing=1
         return v
@@ -162,20 +166,55 @@ class molecule:
         #looks up the path of the coordinates for the starting positions of the walkers and makes nWalkers copies of them and then returns that as an self.nWalkers,self.nAtoms, 3 dimensional array                      
         print 'there are ', self.nAtoms , 'atoms in ', self.name
         if self.name in DeprotonatedWaterDimer:
-            coords=np.array([
-                    [   0.000000000000000 ,  0.000000000000000 ,  0.000000000000000],
-                    [  2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
-                    [  2.749724314110769 ,  -1.765018349357672 ,  0.000000000000000],
-                    [   -2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
-                    [   -2.749724314110769 ,  -1.765018349357672 ,  0.000000000000000]
-                    ])
-            coords=np.array([
-                    [0.0000000,   0.000000000000000 ,  0.000000000000000  ],
-                    [0.0000000,  2.306185590098382 ,  0.000000000000000   ],
-                    [0.0000000,  2.749724314110769 ,  -1.765018349357672  ],
-                    [0.0000000,   -2.306185590098382 ,  0.000000000000000 ],
-                    [0.0000000,   -2.749724314110769 ,  -1.765018349357672]
-                    ])
+            coordsMin=np.array([ [   0.000000000000000 ,  0.000000000000000 ,  0.000000000000000],
+                              [  2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
+                              [  2.749724314110769 ,  -1.765018349357672 ,  0.000000000000000],
+                              [   -2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
+                              [   -2.749724314110769 ,  -1.765018349357672 ,  0.000000000000000]
+                              ])
+            coordsMinRotated=np.array([[0.0000000,   0.000000000000000 ,  0.000000000000000  ],
+                             [0.0000000,  2.306185590098382 ,  0.000000000000000   ],
+                             [0.0000000,  2.749724314110769 ,  -1.765018349357672  ],
+                             [0.0000000,   -2.306185590098382 ,  0.000000000000000 ],
+                             [0.0000000,   -2.749724314110769 ,  -1.765018349357672]
+                             ])
+            
+            coordsc2v=np.array([ [   0.000000000000000 ,  0.000000000000000 ,  0.000000000000000],
+                                 [  -2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
+                                 [  -2.749724314110769 ,  1.765018349357672 ,  0.000000000000000],
+                                 [   2.306185590098382 ,  0.000000000000000 ,  0.000000000000000],
+                                 [   2.749724314110769 ,  1.765018349357672 ,  0.000000000000000]])
+            coordsc2h=np.array([ [   0.000000000000000 ,   0.000000000000000       ,  0.000000000000000],
+                                 [  -2.304566686034061 ,   0.000000000000000       ,  0.000000000000000],
+                                 [  -2.740400260927908 ,   1.0814221449986587E-016 ,  -1.766154718409233],
+                                 [   2.304566686034061 ,   0.000000000000000       ,  0.000000000000000],
+                                 [  2.740400260927908  ,   1.0814221449986587E-016 ,  1.766154718409233]])
+            coordsSaddle=np.array([[ 0.000000000000000   , 0.000000000000000 ,  0.000000000000000 ],   
+                                    [ -2.303263755760085 , 0.000000000000000 ,  0.000000000000000 ],  
+                                    [ -2.720583162407882 , 1.129745554266140 ,  -1.363735721982301],  
+                                    [ 2.303263755760085  , 0.000000000000000 ,  0.000000000000000 ],   
+                                    [ 2.720583162407882  , 1.129745554266140 ,  1.363735721982301 ]])
+
+            coordsAsymStart=np.array([[ 0.2981678882048853 ,   -2.4557992072743176E-002,  -5.5485232545510215E-002],
+                                      [ -2.354423404994569 ,     0.000000000000000     ,    0.000000000000000],
+                                      [ -2.858918674095194 ,     1.111268022307282     ,   -1.352651141853729],
+                                      [  2.354423404994569 ,     0.000000000000000     ,    0.000000000000000],
+                                      [  2.771741580470489 ,     1.236107563104921     ,    1.482886181959795]])
+
+            
+
+            coordsAsymStart=np.array([[   3.52234 ,    1.01649  ,    1.28596],
+                                      [   2.35442 ,    0.00000  ,    0.00000],
+                                      [   0.29817 ,   -0.02456  ,   -0.05549],
+                                      [  -2.85892 ,    1.11127  ,   -1.35265],
+                                      [  -2.35442 ,    0.00000  ,    0.00000]])
+
+
+
+
+            coords=coordsAsymStart
+            
+            
 #            coords=np.array([[ 0.26591125,  0.07072797, -0.02256279],
 #WW         WW                [ 0.55610034,  2.83109547,  0.14883552],
 #  W       W                  [ 1.50122114,  1.22631416, -0.59092507],
@@ -241,22 +280,24 @@ class molecule:
             magV=np.sqrt(V[:,0]**2+V[:,1]**2+V[:,2]**2)
             costheta= np.diag(np.dot(U,V.T))/(magU*magV)
             mass=1.0/(2.0*((1.0/(massOamu))+((1-costheta)/(massHamu))))
+        elif  self.name in DeprotonatedWaterDimer and self.surfaceName=='LocalOHStretch' and self.state==1:
+            mass=(massHamu*massOamu)/(massHamu+massOamu)
 
         elif self.name in DeprotonatedWaterDimer and self.surfaceName=='OHStretchAnti' and self.state==1:
 
-            g=(2.0/massHamu)+ (2.0/massOamu)
-            mass=1.0/g
-
+            g=(1.0/massHamu)+ (1.0/massOamu)
+            mass=(massHamu*massOamu)/(massHamu+massOamu)
+            
         elif self.name in ProtonatedWaterDimer and self.state==0:
             m2=2*(massO)*conversionFactor
             m1=massH*conversionFactor
             mass=m1*m2/(m1+m2)
-            print 'why are you calculateing the reduced mass on the ground state?'  , end
+            print 'why are you calculating the reduced mass on the ground state?'  , end
         elif self.name in DeprotonatedWaterDimer and self.state==0:
             m2=2*(massO)*conversionFactor
             m1=massH*conversionFactor
             mass=m1*m2/(m1+m2)
-            print 'why are you calculateing the reduced mass on the ground state?'  , end
+            print 'why are you calculating the reduced mass on the ground state?'  , end
 
         else:
             print 'not implemented for ', self.name , 'and', self.state, 'and', self.surfaceName,end
@@ -265,6 +306,9 @@ class molecule:
     
     def calcOHBondLenghts(self,x):
         if self.name in DeprotonatedWaterDimer:
+            OH1,OH2=self.calcLocalOH(x)
+            return OH1,OH2,self.calcStretchSym(x),self.calcStretchAnti(x)
+        else:
             OH1=self.bondlength(x,atom1=1, atom2=2)
             OH2=self.bondlength(x,atom1=3, atom2=4)
             invSqrt2=1.0/np.sqrt(2.0)
@@ -294,13 +338,17 @@ class molecule:
         if self.name in DeprotonatedWaterDimer:
             r1=self.bondlength(x,atom1=1,atom2=2)
             r2=self.bondlength(x,atom1=3,atom2=4)
-            return np.sqrt(2.0)*(r1-r2)
+            #print '3 averages',np.average(r1), np.average(r2) , np.average(r1-r2), ' --- '
+            return np.sqrt(0.5)*(r1-r2)
 
     def calcStretchSym(self,x):
         if self.name in DeprotonatedWaterDimer:
             r1=self.bondlength(x,atom1=1,atom2=2)
             r2=self.bondlength(x,atom1=3,atom2=4)
-            return np.sqrt(2.0)*(r1+r2)
+            return np.sqrt(1.0/2.0)*(r1+r2)
+    def calcLocalOH(self,x):
+        if self.name in DeprotonatedWaterDimer:
+            return self.bondlength(x,atom1=1,atom2=2),self.bondlength(x,atom1=3,atom2=4)
 
     def calcRn(self,x):
         if self.surfaceName=='SharedProton':
@@ -309,9 +357,11 @@ class molecule:
             return self.calcStretchAntiIn(x)
         elif self.surfaceName=='OHStretchAnti':
             return self.calcStretchAnti(x)
+        elif self.surfaceName=='LocalOHStretch':
+            return AVERAGEGroundStateOH-self.calcLocalOH(x)
 
 
-    def bondlength(self,pos,atom1=1,atom2=2):
+    def bondlength(self,pos,atom1=1,atom2=3):
         length=(pos[:,atom1,0]-pos[:,atom2,0])**2+(pos[:,atom1,1]-pos[:,atom2,1])**2+(pos[:,atom1,2]-pos[:,atom2,2])**2
         length=np.sqrt(length)
         return length

@@ -34,7 +34,7 @@ GatherExpectationRn=[]
 GatherExpectationRn2=[]
 GatherExpectationMagMu=[]
 GatherExpectationMagMu2=[]
-
+GatherLocalOH=[]
 #Equilibration
 initialx=Wfn.x*1.1
 
@@ -56,7 +56,7 @@ for iwfn in range(nReps):
     print '\n   REPETITION NUMBER: ', iwfn
     v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
 
-    averaged_vref.append(np.average(np.array(v_ref_list)*au2wn))
+    averaged_vref.append(np.average(np.array(v_ref_list[100:])*au2wn))
     list_of_pop_list.append(pop_list)
     plt.figure(1)
     plt.subplot(311)
@@ -68,6 +68,7 @@ for iwfn in range(nReps):
 
     Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
     Dipole=Wfn.molecule.calcDipole(finalCoords)
+    LocalOH=Wfn.molecule.calcLocalOH(finalCoords)
 
     descendantWeights=np.zeros((finalCoords.shape[0]))
 
@@ -77,6 +78,9 @@ for iwfn in range(nReps):
         descendantWeights=descendantWeights+descendantsTemp
 
     descendantWeights=descendantWeights/nRepsDW
+
+    GatherLocalOH.append(np.average(LocalOH,weights=descendantWeights))
+
     inputx=finalCoords
     Wfn.exportCoords(finalCoords,'Wfn-HOHOH/HOHOH-Ground-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
 
@@ -85,6 +89,8 @@ endtime=time.time()
 plt.savefig(plotFileName+'.png')
 plt.clf()
 
+print 'LocalOH:', np.average(GatherLocalOH), np.std(GatherLocalOH)
+print 'Energy:', np.average(averaged_vref),np.std(averaged_vref)
 
 print 'that took', endtime-starttime, 'seconds and ', (endtime-starttime)/60.0 , 'minutes'
 

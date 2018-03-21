@@ -37,8 +37,29 @@ GatherExpectationRn2=[]
 GatherExpectationMagMu=[]
 GatherExpectationMagMu2=[]
 
+initialx=Wfn.x*1.10000
+print 'here is where i print all of the bondlengths'
+print 'atom',0 ,'and',1 ,np.average(Wfn.molecule.bondlength(initialx,atom1=0, atom2=1))
+print 'atom',0 ,'and',2 ,np.average(Wfn.molecule.bondlength(initialx,atom1=0, atom2=2))
+print 'atom',0 ,'and',3 ,np.average(Wfn.molecule.bondlength(initialx,atom1=0, atom2=3))
+print 'atom',0 ,'and',4 ,np.average(Wfn.molecule.bondlength(initialx,atom1=0, atom2=4))
+print 'atom',1 ,'and',2 ,np.average(Wfn.molecule.bondlength(initialx,atom1=1, atom2=2))
+print 'atom',1 ,'and',3 ,np.average(Wfn.molecule.bondlength(initialx,atom1=1, atom2=3))
+print 'atom',1 ,'and',4 ,np.average(Wfn.molecule.bondlength(initialx,atom1=1, atom2=4))
+print 'atom',2 ,'and',3 ,np.average(Wfn.molecule.bondlength(initialx,atom1=2, atom2=3))
+print 'atom',2 ,'and',4 ,np.average(Wfn.molecule.bondlength(initialx,atom1=2, atom2=4))
+print 'atom',3 ,'and',4 ,np.average(Wfn.molecule.bondlength(initialx,atom1=3, atom2=4))
 
-initialx=Wfn.x*1.1
+print 
+
+initialxR=Wfn.exchange(initialx[:N_size/2],[(1,3),(2,4)])*1.0000
+
+print 'first antisymcoordinate', np.average(Wfn.molecule.calcStretchAnti(initialx)),np.average(Wfn.molecule.calcStretchAnti(initialxR))
+
+#initialxL=Wfn.x[:N_size]*1.000
+print initialx.shape,initialxR.shape
+initialx[:N_size/2]=initialxR*1.00000
+print 'initial antisym coordinate',np.average(Wfn.molecule.calcStretchAnti(initialx))
 
 #print 'initial V', Wfn.molecule.V([initialx[0]])*au2wn
 #print 'equilibrating for ', equilibrationSteps, 'steps (',equilibrationSteps*Wfn.dtau,' au)'
@@ -47,6 +68,14 @@ inputx=initialx
 
 parameterString=str(N_size)+'-'+str(nReps)+'-'+str(descendantSteps)+'-'+str(nRepsDW)
 plotFileName=Destination+'Vref-Pop-histogram-Excited-StretchAnti'+parameterString
+linecolor=['#ffe6e6', '#e6e6ff',
+'#ff9999', '#9999ff',
+'#ff4d4d', '#4d4dff',
+'#ff0000', '#0000ff',
+'#b30000', '#0000b3',
+'#660000', '#000066',
+'#330000', '#000033',
+'#1a0000', '#00001a',]
 plt.figure(1)
 
 #Sampling of Psi
@@ -54,9 +83,9 @@ plt.figure(1)
 for iwfn in range(nReps):
     print '\n   REPETITION NUMBER: ', iwfn
     v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
-
-    averaged_vref.append(np.average(np.array(v_ref_list[100:])*au2wn))
-    print averaged_vref[-1]-6604.
+    Psi1Psi1=np.zeros((2,nBins))
+    averaged_vref.append(np.average(np.array(v_ref_list[200:])*au2wn))
+    print 'E_ref[200:]',averaged_vref[-1],'-',6604,'=',averaged_vref[-1]-6604
     list_of_pop_list.append(pop_list)
     plt.figure(1)
     plt.subplot(311)
@@ -69,7 +98,7 @@ for iwfn in range(nReps):
     #Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
     #Dipole=Wfn.molecule.calcDipole(finalCoords)
     itau=0
-    for tauDW in [descendantSteps,2*descendantSteps]:#,3*descendantSteps,4*descendantSteps,5*descendantSteps]:
+    for tauDW in [descendantSteps]:#,3*descendantSteps,4*descendantSteps,5*descendantSteps]:
         descendantWeights=np.zeros((finalCoords.shape[0]))
         for ides in range(nRepsDW):
             print 'DW Rep Number',ides,
@@ -81,20 +110,23 @@ for iwfn in range(nReps):
         Wfn.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-ExcitedStretchAnti-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
         
         ASymCoord=Wfn.molecule.calcStretchAnti(finalCoords)
-        histTemp,bin_edges=np.histogram(ASymCoord,bins=nBins,range=(-2.5,2.5),density=True,
+        HistTemp,bin_edges=np.histogram(ASymCoord,bins=nBins,range=(-2.5,2.5),density=True,
                                           weights=descendantWeights)
-        itau+=1
-        Psi1Psi1[itau]=Psi1Psi1[itau]+HistTemp
 
-    plt.subplot(312)
+        Psi1Psi1[itau]=Psi1Psi1[itau]+HistTemp
+        itau=itau+1
+
+    plt.subplot(313)
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
-    plt.plot(bin_center,Psi1Psi1[0]/nReps,color='red')
-    plt.plot(bin_center,Psi1Psi1[1]/nReps,color='blue')
+
+    #plt.plot(bin_center,Psi1Psi1[0])#,color=linecolor[iwfn])
+    plt.plot(bin_center,Psi1Psi1[1])#,color=linecolor[iwfn])
 endtime=time.time()
 
 
 
 plt.savefig(plotFileName+'.png')
+plt.show()
 plt.clf()
 
 
