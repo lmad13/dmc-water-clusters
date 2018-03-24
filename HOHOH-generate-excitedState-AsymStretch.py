@@ -29,7 +29,7 @@ Psi1Psi1=np.zeros((2,nBins))
 averaged_vref=[]
 list_of_pop_list=[]
 
-Wfn=dmc.wavefunction('HOHOH', N_size)
+Wfn=dmc.wavefunction('HOHOH', N_size,dtau=10.0)
 Wfn.setNodalSurface('OHStretchAnti',side='Both')
 Destination='ResultsH3O2/'
 GatherExpectationRn=[]
@@ -54,12 +54,15 @@ print
 
 initialxR=Wfn.exchange(initialx[:N_size/2],[(1,3),(2,4)])*1.0000
 
-print 'first antisymcoordinate', np.average(Wfn.molecule.calcStretchAnti(initialx)),np.average(Wfn.molecule.calcStretchAnti(initialxR))
+ASx,listOfSwapped=Wfn.molecule.calcStretchAnti(initialx)
+ASr,listOfSwapped=Wfn.molecule.calcStretchAnti(initialxR)
+print 'first antisymcoordinate', np.average(ASx),np.average(ASr)
 
 #initialxL=Wfn.x[:N_size]*1.000
 print initialx.shape,initialxR.shape
 initialx[:N_size/2]=initialxR*1.00000
-print 'initial antisym coordinate',np.average(Wfn.molecule.calcStretchAnti(initialx))
+
+#print 'initial antisym coordinate',np.average(Wfn.molecule.calcStretchAnti(initialx))
 
 #print 'initial V', Wfn.molecule.V([initialx[0]])*au2wn
 #print 'equilibrating for ', equilibrationSteps, 'steps (',equilibrationSteps*Wfn.dtau,' au)'
@@ -67,7 +70,7 @@ print 'initial antisym coordinate',np.average(Wfn.molecule.calcStretchAnti(initi
 inputx=initialx
 
 parameterString=str(N_size)+'-'+str(nReps)+'-'+str(descendantSteps)+'-'+str(nRepsDW)
-plotFileName=Destination+'Vref-Pop-histogram-Excited-StretchAnti'+parameterString
+plotFileName=Destination+'Vref-Pop-histogram-Excited-StretchAnti-'+parameterString
 linecolor=['#ffe6e6', '#e6e6ff',
 '#ff9999', '#9999ff',
 '#ff4d4d', '#4d4dff',
@@ -84,8 +87,8 @@ for iwfn in range(nReps):
     print '\n   REPETITION NUMBER: ', iwfn
     v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
     Psi1Psi1=np.zeros((2,nBins))
-    averaged_vref.append(np.average(np.array(v_ref_list[200:])*au2wn))
-    print 'E_ref[200:]',averaged_vref[-1],'-',6604,'=',averaged_vref[-1]-6604
+    averaged_vref.append(np.average(np.array(v_ref_list[propagationSteps/2:])*au2wn))
+    print 'E_ref[Nsteps/2:]',averaged_vref[-1],'-',6604,'=',averaged_vref[-1]-6604
     list_of_pop_list.append(pop_list)
     plt.figure(1)
     plt.subplot(311)
@@ -107,10 +110,11 @@ for iwfn in range(nReps):
         descendantWeights=descendantWeights/nRepsDW
         ##inputx=finalCoords
         parameterString=str(N_size)+'-'+str(nReps)+'-'+str(tauDW)+'-'+str(nRepsDW)
-        Wfn.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-ExcitedStretchAnti-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
+        Wfn.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-ExcitedStretchAnti-noRecrossing'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
         
-        ASymCoord=Wfn.molecule.calcStretchAnti(finalCoords)
-        HistTemp,bin_edges=np.histogram(ASymCoord,bins=nBins,range=(-2.5,2.5),density=True,
+        ASymCoord,swapped=Wfn.molecule.calcStretchAnti(finalCoords)
+        print ASymCoord.shape, descendantWeights.shape
+        HistTemp,bin_edges=np.histogram(ASymCoord,bins=nBins,range=(-1.5,1.5),density=True,
                                           weights=descendantWeights)
 
         Psi1Psi1[itau]=Psi1Psi1[itau]+HistTemp
@@ -120,7 +124,7 @@ for iwfn in range(nReps):
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
 
     #plt.plot(bin_center,Psi1Psi1[0])#,color=linecolor[iwfn])
-    plt.plot(bin_center,Psi1Psi1[1])#,color=linecolor[iwfn])
+    plt.plot(bin_center,Psi1Psi1[0])#,color=linecolor[iwfn])
 endtime=time.time()
 
 
@@ -129,7 +133,8 @@ plt.savefig(plotFileName+'.png')
 plt.show()
 plt.clf()
 
-
+print 'averaged_vref',averaged_vref,np.average(averaged_vref),np.std(averaged_vref)
+print 'averaged_vref',np.array(averaged_vref)-6604,np.average(averaged_vref)-6604,np.std(averaged_vref)
 print 'that took', endtime-starttime, 'seconds and ', (endtime-starttime)/60.0 , 'minutes'
 
 print 'done!'

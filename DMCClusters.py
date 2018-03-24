@@ -11,7 +11,7 @@ massConversionFactor=1.000000000000000000/6.02213670000e23/9.10938970000e-28#182
 
 class wavefunction:
 
-    def __init__(self,moleculeName, nWalkers, potentialName='Ground State'):
+    def __init__(self,moleculeName, nWalkers, potentialName='Ground State',dtau=10.0):
         self.molecule=molecularInfo.molecule(moleculeName)
 
         self.pathDict=self.loadDict("paths.dict")
@@ -24,7 +24,7 @@ class wavefunction:
         self.x=np.zeros((nWalkers,self.nAtoms,self.nDim))
         self.x[:]=self.molecule.getInitialCoordinates()
         self.D=.5
-        self.set_dtau()
+        self.set_dtau(dtau=dtau)
         self.mass=self.molecule.get_mass()
         self.sigma_dx=(2.0000*self.D*self.dtau/self.mass)**0.5
         self.alpha=.25/self.dtau
@@ -35,10 +35,10 @@ class wavefunction:
         self.surfaceName=surfaceName
         self.side=side # Right: x>node
         self.molecule.setNodalSurface(self.surfaceName,self.side)
-        self.recrossing=True
+        self.recrossing=True 
 
-    def set_dtau(self):
-        self.dtau=10.0
+    def set_dtau(self,dtau=10.0):
+        self.dtau=dtau
         print 'dtau is ', self.dtau, 'imaginary atomic time units'
 
     def loadDict(self,fileName):
@@ -90,7 +90,10 @@ class wavefunction:
                 coordstemp.append(float(filedata[ln*repeatUnit+2+an].split()[2]))
                 coordstemp.append(float(filedata[ln*repeatUnit+2+an].split()[3]))
             coord[ln,:,:]=np.reshape(coordstemp,(self.nAtoms,3))
-            descCoord[ln]=float(filedata[ln*repeatUnit+1].split()[0])
+            try:
+                descCoord[ln]=float(filedata[ln*repeatUnit+1].split()[0])
+            except:
+                descCoord[ln]=1.0
         coord=coord/au2ang
         return coord,descCoord
 
@@ -122,9 +125,11 @@ class wavefunction:
             if step%printRate==0 and printCensus: print 'step #',step, 
             dx=self.diffuse()
             x=x+dx
+
+            #print ' step ',step,
             v=self.molecule.V(x)
 
-            
+
             #Elimination of a random selection of walkers 
             #in the classically forbidden region
             N_r=np.random.random(self.currentPop)
@@ -145,9 +150,13 @@ class wavefunction:
             if self.recrossing:
                 # m2=2*(massO+2*massH)*massConversionFactor
                 # m1=massH*massConversionFactor
-                newReducedMass=self.molecule.calcReducedmass(x)
+                #print 'in recrossing',
                 oldDist=self.molecule.calcRn(x-dx)
+
                 newDist=self.molecule.calcRn(x)
+
+                
+                newReducedMass=self.molecule.calcReducedmass(x)
                 crossed=(oldDist*newDist<0)
 
                 oldReducedMass=self.molecule.calcReducedmass(x-dx)
@@ -162,6 +171,7 @@ class wavefunction:
                 mask_died_by_recrossing=(Diff<0)
                 tempRecrossCensus=np.sum(np.array(Diff<0).astype(int))
                 mask_survive=np.logical_and(mask_survive, mask_survive_recross)
+                #if len(listOfSwapped)>0 or len(listOfSwapped2)>0 : print 'did they survive?',mask_survive[listOfSwapped], mask_survive[listOfSwapped2],v[listOfSwapped],v[listOfSwapped2]
                 if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ',tempRecrossCensus, 'crossed',np.sum(crossed.astype(int))
                 #if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ', newDist[mask_died_by_recrossing]
             
@@ -223,8 +233,9 @@ class wavefunction:
             
             #let's make sure none of the walkers crossed to the other side...
             position_on_coord=self.molecule.calcRn(x)
-            #print 'wrong side!', position_on_coord[(position_on_coord>0)],
-            #print 'from these array locations!',np.where(position_on_coord>0)
+            #print position_on_coord[0],position_on_coord.shape
+            if step%printRate==0 and printCensus:print 'wrong side!', position_on_coord[(position_on_coord<0)],np.average(position_on_coord)
+            if step%printRate==0 and printCensus:print 'from these array locations!',np.where(position_on_coord<0)
 #            if np.where(position_on_coord>0)[0].shape[0]>1:
 #               end
             
