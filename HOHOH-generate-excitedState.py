@@ -30,7 +30,8 @@ list_of_pop_list=[]
 
 Wfn=dmc.wavefunction('HOHOH', N_size)
 Wfn.setNodalSurface('SharedProton',side='Both')
-Destination='ResultsH3O2-Tau/'
+
+Destination='Wfn-HOHOH-Tau/'
 GatherExpectationRn=[]
 GatherExpectationRn2=[]
 GatherExpectationMagMu=[]
@@ -54,7 +55,7 @@ for iwfn in range(nReps):
     print '\n   REPETITION NUMBER: ', iwfn
     v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
 
-    averaged_vref.append(np.average(np.array(v_ref_list)*au2wn))
+    averaged_vref.append(np.average(np.array(v_ref_list[propagationSteps/2:])*au2wn))
     list_of_pop_list.append(pop_list)
     plt.figure(1)
     plt.subplot(311)
@@ -67,7 +68,7 @@ for iwfn in range(nReps):
     #Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
     #Dipole=Wfn.molecule.calcDipole(finalCoords)
 
-    for tauDW in [descendantSteps,2*descendantSteps,3*descendantSteps,4*descendantSteps,5*descendantSteps]:
+    for tauDW in [descendantSteps]:#,2*descendantSteps,3*descendantSteps,4*descendantSteps,5*descendantSteps]:
         descendantWeights=np.zeros((finalCoords.shape[0]))
         for ides in range(nRepsDW):
             print 'DW Rep Number',ides,
@@ -82,8 +83,20 @@ for iwfn in range(nReps):
 
 endtime=time.time()
 
+print 'average Energy:', np.average(averaged_vref), np.std(averaged_vref)
+
+print np.array(averaged_vref)
+print 'uncertainity',((np.max(averaged_vref)-np.min(averaged_vref))/(np.sqrt(2.0)*nReps))
+print 'that took', endtime-starttime, 'seconds and ', (endtime-starttime)/60.0 , 'minutes'
+
+
+
+
+
 plt.savefig(plotFileName+'.png')
 plt.clf()
+
+
 
 
 print 'that took', endtime-starttime, 'seconds and ', (endtime-starttime)/60.0 , 'minutes'
