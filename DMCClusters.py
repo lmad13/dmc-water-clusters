@@ -27,8 +27,7 @@ class wavefunction:
         self.set_dtau(dtau=dtau)
         self.mass=self.molecule.get_mass()
         self.sigma_dx=(2.0000*self.D*self.dtau/self.mass)**0.5
-        self.alpha=.25/self.dtau
-
+        self.alpha=.5/self.dtau
         self.recrossing=False
 
     def setNodalSurface(self,surfaceName,side='Both'):
@@ -36,7 +35,12 @@ class wavefunction:
         self.side=side # Right: x>node
         self.molecule.setNodalSurface(self.surfaceName,self.side)
         self.recrossing=True 
-
+    def setIsotope(self,keyword):
+        self.molecule.set_isotope(keyword)
+        self.mass=self.molecule.get_mass()
+        self.sigma_dx=(2.0000*self.D*self.dtau/self.mass)**0.5
+        print 'isotope made! new masses: ', self.mass
+        
     def set_dtau(self,dtau=10.0):
         self.dtau=dtau
         print 'dtau is ', self.dtau, 'imaginary atomic time units'
@@ -65,6 +69,7 @@ class wavefunction:
             dx[:,atom:atom+1,:]=np.random.normal(centerOfGaussian,self.sigma_dx[atom],(self.currentPop,1,self.nDim))
 
         return dx
+
 
     def exportCoords(self,x,fileName,nDesc):
         fileout=open(fileName,'w')
@@ -108,7 +113,7 @@ class wavefunction:
         if setV_ref:
             v_ref=ConstantV_ref
         else:
-            v_ref=np.average(self.molecule.V(x))+(self.alpha*(1-float(self.currentPop)/float(initialPop)))
+            v_ref=np.average(self.molecule.V(x))+(self.alpha*(1.0-float(self.currentPop)/float(initialPop)))
 
         population=[]
         population.append(self.currentPop)
@@ -142,8 +147,8 @@ class wavefunction:
 
             #LASSIE MODE
             #DEATH BY PEF HOLES
-            mask_not_holes=(v>0.0) #mask
-            inHole=(v<=0.0)
+            mask_not_holes=(v>-0.0000005) #mask
+            inHole=(v<=-0.0000005)
             mask_survive=np.logical_and(mask_survive,mask_not_holes)
             if step%printRate==0 and printCensus: print 'Death by holes',np.sum(np.array(v<0.0).astype(int)),
             # removal of all walkers that cross and a random selection of walkers that are too close to the node
@@ -151,40 +156,47 @@ class wavefunction:
                 # m2=2*(massO+2*massH)*massConversionFactor
                 # m1=massH*massConversionFactor
                 #print 'in recrossing',
-                oldDist=self.molecule.calcRn(x-dx)
-
-                newDist=self.molecule.calcRn(x)
-
-                
-                newReducedMass=self.molecule.calcReducedmass(x)
+                oldDist,swapped=self.molecule.calcRn(x-dx)
+                newDist,newswapped=self.molecule.calcRn(x)
                 crossed=(oldDist*newDist<0)
 
+                newReducedMass=self.molecule.calcReducedmass(x)
                 oldReducedMass=self.molecule.calcReducedmass(x-dx)
-                P_recrossDeath=np.exp(-2.0*(oldDist)*newDist*np.sqrt(oldReducedMass*newReducedMass)/self.dtau) ##mass is reduced mass!
+                #P_recrossDeath=np.exp(-2.0*(oldDist)*newDist*np.sqrt(oldReducedMass*newReducedMass)/self.dtau) ##mass is reduced mass!
+                P_recrossDeath=np.exp(-2.0*(oldDist)*newDist*newReducedMass/(self.dtau)) #
+                if len(swapped)>0 or len(newswapped)>0:print 'recrossing ',P_recrossDeath[swapped],P_recrossDeath[newswapped]
                 #caution, this is clever, you are combining the probability of crossing and the probability of recrossing
                 #if self.plotting:
                 #    plt.scatter(x,P_recrossDeath)
                 #    plt.show()
-                
-                Diff=N_r-P_recrossDeath
+                N_r_recross=np.random.random(self.currentPop)
+                #N_r_recross=np.ones(self.currentPop)
+                Diff=N_r_recross-P_recrossDeath
                 mask_survive_recross=(Diff>0)
                 mask_died_by_recrossing=(Diff<0)
                 tempRecrossCensus=np.sum(np.array(Diff<0).astype(int))
                 mask_survive=np.logical_and(mask_survive, mask_survive_recross)
-                #if len(listOfSwapped)>0 or len(listOfSwapped2)>0 : print 'did they survive?',mask_survive[listOfSwapped], mask_survive[listOfSwapped2],v[listOfSwapped],v[listOfSwapped2]
+                ###test for survival and make sure recrossed ones actually die and do not give birth!!!
+
+                ##rather than combine crossing and recrossing, separate them out
+
+                #1)#make a recross random number
+
+                #0)#compared dmc_e_norec.out #set random number generator to be 1 so that only the crossed walkers will die and not the recrossing correction
+                if len(swapped)>0 or len(newswapped)>0 : print 'did they survive?',mask_survive[swapped], mask_survive[newswapped],v[swapped],v[newswapped]
                 if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ',tempRecrossCensus, 'crossed',np.sum(crossed.astype(int))
                 #if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ', newDist[mask_died_by_recrossing]
-            
-            
+                        
             survivors=x[mask_survive]            
 
 #Creation of a random selection of walkers in the classically allowed region and who did not die by recrossing, so the survivors
         
-                
-    
             P_exp_b=np.exp(-(v-v_ref)*self.dtau)-1.0
+
+            #test if this is actually working by turning this off...
             if self.recrossing:
                 P_exp_b[crossed]=0.00000  #if it crossed, the probability that it gives birth should be zero
+                
             P_exp_b[inHole]=0.00000  #if it fell in a hole
 
             weight_P_b=P_exp_b.astype(int)
@@ -193,6 +205,8 @@ class wavefunction:
             
             Diff=N_r-P_b
             mask_b = (Diff<0)
+            if self.recrossing:
+                if len(swapped)>0 or len(newswapped)>0 : print np.any(mask_b[swapped])
             next_gen=x[mask_b]
             new_pop_whoYaFrom=whoYaFrom[mask_b]
             nBirths=np.sum(np.array(Diff<0).astype(int))
@@ -232,10 +246,10 @@ class wavefunction:
             x=new_population
             
             #let's make sure none of the walkers crossed to the other side...
-            position_on_coord=self.molecule.calcRn(x)
+            #position_on_coord=self.molecule.calcRn(x)
             #print position_on_coord[0],position_on_coord.shape
-            if step%printRate==0 and printCensus:print 'wrong side!', position_on_coord[(position_on_coord<0)],np.average(position_on_coord)
-            if step%printRate==0 and printCensus:print 'from these array locations!',np.where(position_on_coord<0)
+            #if step%printRate==0 and printCensus:print 'wrong side!', position_on_coord[(position_on_coord<0)],np.average(position_on_coord)
+            #if step%printRate==0 and printCensus:print 'from these array locations!',np.where(position_on_coord<0)
 #            if np.where(position_on_coord>0)[0].shape[0]>1:
 #               end
             
@@ -246,7 +260,7 @@ class wavefunction:
             v_average=np.average(self.molecule.V(new_population))
             
             if not setV_ref:
-                v_ref=v_average+(self.alpha*(1-float(self.currentPop)/float(initialPop)))
+                v_ref=v_average+(self.alpha*(1.00-float(self.currentPop)/float(initialPop)))
             if step%printRate==0 and printCensus: print 'v_ref',v_ref, '=', v_average,'+', (self.alpha*(1-float(self.currentPop)/float(initialPop)))
             vRefList.append(v_ref)
             population.append(self.currentPop)

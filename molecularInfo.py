@@ -3,7 +3,9 @@ import sys
 import os
 global massH
 global massO
+global massD
 massH=1.00782503223
+massD=2.0141017778
 massO=15.99491561957
 massConversionFactor=1.000000000000000000/6.02213670000e23/9.10938970000e-28#1822.88839 
 ang2bohr=1.88973
@@ -17,17 +19,28 @@ global DeprotonatedWaterDimer
 DeprotonatedWaterDimer = {'HOHOH','H3O2-', 'h3o2-', 'h3o2', 'H3O2'}
 ProtonatedWaterTrimer = {'H7O3+','O3H7+', 'H7O3plus','H7O3', 'O3H7'}
 ProtonatedWaterTetramer = {'H9O4+','O4H9+', 'H9O4plus','H9O4', 'O4H9'}
-
+IsotopeKeywords = {'notDeuterated','DeuteratedTwice','fullyDeuterated'}
 
 class molecule:
     def __init__(self,moleculeName):
         self.name=moleculeName
         if self.name in DeprotonatedWaterDimer:
             self.nAtoms=5
+            self.names=['H','O','H','O','H']
         self.pathDict=self.loadDict("paths.dict")
         self.potential=self.getPES()
         self.surfaceName="GroundState"
         self.dipole=self.getDIPOLE()
+        self.isotope='notDeuterated'
+    def set_isotope(self,keyword):
+        print 'resetting isotope to ', keyword
+        if keyword in IsotopeKeywords:
+            self.isotope=keyword
+            if self.isotope=='DeuteratedTwice':
+                self.names=['H','O','D','O','D']
+            elif self.isotope=='fullyDeuterated':
+                self.names=['D','O','D','O','D']
+            print 'atoms are now', self.names
     def setNodalSurface(self,surfaceName,side):
         self.surfaceName=surfaceName
         self.side=side
@@ -82,9 +95,13 @@ class molecule:
             else:
                 donothing=1
         elif self.surfaceName=='OHStretchAnti':
-            
-            if self.side=='Right':
-                
+            #if self.side=='Both':
+            #    r,swap=self.calcStretchAnti(x)
+            #    if (len(swap)>0):
+            #        print 'swap list', swap, 'v before',v[swap],
+            #        v[np.array(swap)]=1000.00
+            #        print 'v after', v[swap]
+            if self.side=='Right':      
                 #self.sortProtons()
                 r,swap=self.calcStretchAnti(x)
                 v[(r<0)]=1000.00
@@ -218,29 +235,53 @@ class molecule:
 #   W  W  W                   [-0.11962985, -1.87021212,  0.22794889],
 #    W   W                    [ 1.20503929, -0.77837156,  0.71051114]])
             
-            self.names=['H','O','H','O','H']
+        
         else:
             print 'not implemented!!'
         return coords
+    def getMassSharedProton(self):
+        if self.isotope=='DeuteratedTwice':
+            return massH
+        if self.isotope=='notDeuterated':
+            return massH
+        if self.isotope=='fullyDeuterated':
+            return massD
+    def getMassOuterProton(self):
+        if self.isotope=='DeuteratedTwice':
+            return massD
+        if self.isotope=='notDeuterated':
+            return massH
+        if self.isotope=='fullyDeuterated':
+            return massD
 
+    
     def get_mass(self):
         mass=np.zeros((self.nAtoms))
         if self.name in DeprotonatedWaterDimer:
             mass=np.array([massH,massO,massH,massO,massH])
+            if self.isotope=='DeuteratedTwice':
+                mass[2]=massD
+                mass[4]=massD
+            if self.isotope=='fullyDeuterated':
+                mass[2]=massD
+                mass[4]=massD
+                mass[0]=massD
+            
         return mass*massConversionFactor
 
     def calcReducedmass(self,x):
         # for the shared proton stretch, page 42 in notebook #2
         massOamu=massO*massConversionFactor
-        massHamu=massH*massConversionFactor
+
         if self.name in ProtonatedWaterDimer and self.state==1 and self.surfaceName=='SharedProton':
             ##COMwat1=1.0/massWater*(massO*x[:,0,:]+massH*(x[:,3,:]+x[:,4,:]))
             ##COMwat2=1.0/massWater*(massO*x[:,1,:]+massH*(x[:,5,:]+x[:,6,:]))
             ##U=x[:,2,:]-COMwat1                                              
-            ##V=x[:,2,:]-COMwat2                                                                                                  
+            ##V=x[:,2,:]-COMwat2                                       
+
             U=x[:,2,:]-x[:,1,:]
             V=x[:,2,:]-x[:,0,:]
-
+            massHamu=self.getMassSharedProton()*massConversionFactor
             magU=np.sqrt(U[:,0]**2+U[:,1]**2+U[:,2]**2)
             magV=np.sqrt(V[:,0]**2+V[:,1]**2+V[:,2]**2)
             
@@ -249,9 +290,11 @@ class molecule:
             #corresponds to calcrncom                                                                                             
 
             mass=1.0/(2.0*((1.0/(massOamu))+((1-costheta)/(massHamu))))
-
+            #print 'average mass', np.average(mass)
             #Mass of water or Mass of O??                                                                                         
         elif self.name in ProtonatedWaterDimer and self.state==1 and self.surfaceName=='StretchAntiIn':
+
+            massHamu=self.getMassOuterProton()*massConversionFactor
 
             U=x[:,0,:]-x[:,3,:]
             V=x[:,0,:]-x[:,4,:]
@@ -271,28 +314,32 @@ class molecule:
             mass= 1.0/g
 
         elif self.name in DeprotonatedWaterDimer and self.surfaceName=='SharedProton' and self.state==1:
+            massHamu=self.getMassSharedProton()*massConversionFactor
             U=x[:,0,:]-x[:,1,:]
             V=x[:,0,:]-x[:,2,:]
             magU=np.sqrt(U[:,0]**2+U[:,1]**2+U[:,2]**2)
             magV=np.sqrt(V[:,0]**2+V[:,1]**2+V[:,2]**2)
             costheta= np.diag(np.dot(U,V.T))/(magU*magV)
             mass=1.0/(2.0*((1.0/(massOamu))+((1-costheta)/(massHamu))))
+            #print 'average mass', np.average(mass)
         elif  self.name in DeprotonatedWaterDimer and self.surfaceName=='LocalOHStretch' and self.state==1:
+            massHamu=self.getMassOuterProton()*massConversionFactor
             mass=(massHamu*massOamu)/(massHamu+massOamu)
 
         elif self.name in DeprotonatedWaterDimer and self.surfaceName=='OHStretchAnti' and self.state==1:
-
+            massHamu=self.getMassOuterProton()*massConversionFactor
             g=(1.0/massHamu)+ (1.0/massOamu)
-            mass=(massHamu*massOamu)/(massHamu+massOamu)
-            
+            mass=1.0/g #(massHamu*massOamu)/(massHamu+massOamu)
+            #print 'average mass', np.average(mass)
         elif self.name in ProtonatedWaterDimer and self.state==0:
+            m1=self.getMassOuterProton()*massConversionFactor
             m2=2*(massO)*conversionFactor
-            m1=massH*conversionFactor
+            #m1=massH*conversionFactor
             mass=m1*m2/(m1+m2)
             print 'why are you calculating the reduced mass on the ground state?'  , end
         elif self.name in DeprotonatedWaterDimer and self.state==0:
             m2=2*(massO)*conversionFactor
-            m1=massH*conversionFactor
+            m1=self.getMassOuterProton()*massConversionFactor
             mass=m1*m2/(m1+m2)
             print 'why are you calculating the reduced mass on the ground state?'  , end
 
@@ -316,20 +363,28 @@ class molecule:
         H2O3=self.bondlength(x,atom1=2 ,atom2=3)
         H4O1=self.bondlength(x,atom1=4 ,atom2=1)
         H4O3=self.bondlength(x,atom1=4 ,atom2=3)
+
         aveOH0=np.average(zip(H0O1,H0O3),axis=1)
-    
         aveOH2=np.average(zip(H2O1,H2O3),axis=1)
         aveOH4=np.average(zip(H4O1,H4O3),axis=1)
         
-        fileout=open('swappyCoordinates.xyz','a')
         averagesAll=np.array(zip(aveOH0,aveOH2,aveOH4))
+
         OH1DistAll=np.array(zip(H0O1,H2O1,H4O1))
         sortByAveragesAll=np.argsort(averagesAll,axis=1)
-        checkSortNeed=np.logical_not(sortByAveragesAll[0]==0)
+
+        checkSortNeed=np.logical_not(sortByAveragesAll[:,0]==0)
+        
+        #print 'checkSortNeed sample', sortByAveragesAll[0:10],checkSortNeed[0:10]
         listOfSwapped=[]
         if np.any(checkSortNeed):
             
-            for n,sortByAverages in enumerate(sortByAveragesAll):
+            print checkSortNeed, np.where(checkSortNeed)
+            fileout=open('swappyCoordinates.xyz','a')
+            print 'x shape',x.shape
+            for m in np.where(checkSortNeed):
+                n=m[0]
+                sortByAverages=sortByAveragesAll[n]
                 
                 protonIndices=np.array([0,2,4])
                 averages=averagesAll[n]
@@ -338,6 +393,7 @@ class molecule:
                 centralProtonIndex=protonIndices[sortByAverages][0]
                 outerOHIndex=protonIndices[sortByAverages][1:]
                 outerOHDist=OH1Dist[sortByAverages][1:]
+
                 sortByHO1Dist=np.argsort(outerOHDist)
                 H2primeIndex=outerOHIndex[sortByHO1Dist][0]
                 H4primeIndex=outerOHIndex[sortByHO1Dist][1]
@@ -350,18 +406,19 @@ class molecule:
                     print 'first AverageOH:      ', averages
                     print 'second, O1-H dis:    ',OH1Dist
                     print 'and third, O2-H dis: ',np.array([H0O3[n],H2O3[n],H4O3[n]])
-                    print centralProtonIndex,H2primeIndex,H4primeIndex, '=?=',            
-                    print positionH0prime,positionH2prime, positionH4prime
+                    #print centralProtonIndex,H2primeIndex,H4primeIndex, '=?=',            
+                    #print positionH0prime,positionH2prime, positionH4prime
                     print x[n]
                     self.printCoordsToFile([x[n]],fileout)
+                    
                     x[n][[0,1,2,3,4]]=x[n][[centralProtonIndex,1,H2primeIndex,3,H4primeIndex]]
                     self.printCoordsToFile([x[n]],fileout)
-                    print 'finally',x[n]
+                    print 'finally \n',x[n]
                     listOfSwapped.append(n)
                     
         #I might not have to sort all of them!
         
-
+            fileout.close
         return listOfSwapped
 
     def printCoordsToFile(self,x,fileout):
@@ -374,6 +431,45 @@ class molecule:
             fileout.write("\n")
         return
 
+    def calcAverageInternalCoordinates(self,x,dw):
+        if self.name in DeprotonatedWaterDimer:
+            listOfSwapped=self.sortProtons(x)
+            print 'check swapped:', x[listOfSwapped]
+            print '\n ^^^ no really check it! ^^^ \n'
+        #Local Intramolecular:                                                                                                                 
+            HO1=self.bondlength(x,atom1=1, atom2=2)
+            HO2=self.bondlength(x,atom1=3, atom2=4)
+            magAsOH=np.absolute(HO2-HO1)
+        #shared proton                                                                                                                         
+            BO1=self.bondlength(x,atom1=0, atom2=1)
+            BO2=self.bondlength(x,atom1=0, atom2=3)
+        #Intermolecular                                                                                                                        
+            OO= self.bondlength(x,atom1=1, atom2=3)
+            HxH=self.bondlength(x,atom1=2, atom2=4)
+            H2B=self.bondlength(x,atom1=0, atom2=2)
+            H4B=self.bondlength(x,atom1=0, atom2=4)
+            
+        #PseudoRock
+            Rock1=self.bondlength(x,atom1=1, atom2=4)-self.bondlength(x,atom1=1, atom2=0)
+            Rock3=self.bondlength(x,atom1=3, atom2=2)-self.bondlength(x,atom1=3, atom2=0)
+        #calc max, min, average, expectationValue, and  std of each                                                                                                   
+            Values=np.zeros((11,5))
+            Values[:,0]=    np.min([HO1,HO2,magAsOH,BO1,Rock1,Rock3,BO2,OO,HxH,H2B,H4B],axis=1)
+            Values[:,1]=    np.max([HO1,HO2,magAsOH,BO1,Rock1,Rock3,BO2,OO,HxH,H2B,H4B],axis=1)
+            Values[:,2]=np.average([HO1,HO2,magAsOH,BO1,Rock1,Rock3,BO2,OO,HxH,H2B,H4B],axis=1)
+            Values[:,3]=np.average([HO1,HO2,magAsOH,BO1,Rock1,Rock3,BO2,OO,HxH,H2B,H4B],axis=1,weights=dw)
+            Values[:,4]=    np.std([HO1,HO2,magAsOH,BO1,Rock1,Rock3,BO2,OO,HxH,H2B,H4B],axis=1)
+            
+            internalNames=['HO1','HO2','|r2-r1|','BO1','BO2','Rock1','Rock3','OO','HxH','H2B','H4B']            
+            
+        return internalNames,Values
+
+    def calcRocks(self,x):
+        BO1=self.bondlength(x,atom1=1, atom2=0)
+        BO2=self.bondlength(x,atom1=3, atom2=0)
+        Rock1=self.bondlength(x,atom1=1, atom2=4)-BO1
+        Rock3=self.bondlength(x,atom1=3, atom2=2)-BO2
+        return Rock1,Rock3
     def calcOHBondLenghts(self,x):
         if self.name in DeprotonatedWaterDimer:
             OH1,OH2=self.calcLocalOH(x)
@@ -408,10 +504,13 @@ class molecule:
     def calcStretchAnti(self,x):
         #print 'calculating StretchAnti'
         if self.name in DeprotonatedWaterDimer:
+            #print 'calculatingStretchAnti',
             listOfSwapped=self.sortProtons(x)
             r1=self.bondlength(x,atom1=1,atom2=2)
             r2=self.bondlength(x,atom1=3,atom2=4)
+            
             #print '3 averages',np.average(r1), np.average(r2) , np.average(r1-r2), ' --- '
+            #return (r1-r2), listOfSwapped
             return np.sqrt(0.5)*(r1-r2), listOfSwapped
 
     def calcStretchSym(self,x):
@@ -427,11 +526,13 @@ class molecule:
         if self.surfaceName=='SharedProton':
             return self.calcSharedProtonDisplacement(x)
         elif self.surfaceName=='StretchAntiIn':
-            return self.calcStretchAntiIn(x)
+            rncoord=self.calcStretchAntiIn(x)
+            return rncoord
         elif self.surfaceName=='OHStretchAnti':
             #print 'from calcRN',
             rn,listOfSwapped=self.calcStretchAnti(x)
-            return rn
+
+            return rn,listOfSwapped
         elif self.surfaceName=='LocalOHStretch':
             return AVERAGEGroundStateOH-self.calcLocalOH(x)
 
