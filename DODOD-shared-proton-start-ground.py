@@ -59,7 +59,7 @@ for iwfn in range(nReps):
     
     v_ref_list,pop_list,finalCoords,d=WfnFixedNode.propagate(GroundStateCoords,propagationSteps,printCensus=True,initialPop=N_size)
     averaged_vref.append( np.average(v_ref_list[propagationSteps/2:]))
-    
+    print 'the average v_ref from this sim was',averaged_vref[-1]*au2wn,'1/cm'
     plt.subplot(311)
 
     plt.plot(np.arange(nReps*propagationSteps,propagationSteps+nReps*propagationSteps+1),np.array(v_ref_list)*au2wn)
@@ -75,7 +75,7 @@ for iwfn in range(nReps):
         descendantWeights=descendantWeights/nRepsDW
         #inputx=finalCoords
         parameterString=str(N_size)+'-'+str(nReps)+'-'+str(tauDW)+'-'+str(nRepsDW)
-        RnCoord=WfnFixedNode.molecule.calcRn(finalCoords)
+        RnCoord,swapped=WfnFixedNode.molecule.calcRn(finalCoords)
         HistTemp,bin_edges=np.histogram(RnCoord,bins=nBins,range=(-1.5,1.5),density=True,
                                         weights=descendantWeights)
         bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0

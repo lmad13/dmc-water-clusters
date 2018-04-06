@@ -28,10 +28,10 @@ AvePsi2Dip2Hist=np.zeros((nBins))
 averaged_vref=[]
 list_of_pop_list=[]
 
-Wfn=dmc.wavefunction('HOHOH', N_size)
+Wfn=dmc.wavefunction('HOHOH', N_size,dtau=10.0)
 GroundStateCoords,descendantWeights=Wfn.loadCoords('Wfn-HOHOH-Tau/HOHOH-Ground-20000-10-50-10Eq-0.xyz')
 
-WfnFixedNode=dmc.wavefunction('HOHOH',N_size)
+WfnFixedNode=dmc.wavefunction('HOHOH',N_size,dtau=10.0)
 WfnFixedNode.setNodalSurface('OHStretchAnti',side='Both')
 
 Destination='ResultsH3O2/'
@@ -60,11 +60,12 @@ for iwfn in range(nReps):
     
     v_ref_list,pop_list,finalCoords,d=WfnFixedNode.propagate(GroundStateCoords,propagationSteps,printCensus=True,initialPop=N_size)
     averaged_vref.append( np.average(v_ref_list[propagationSteps/2:]))
-    
+    print 'energy for this simulation:',averaged_vref[-1]*au2wn
     plt.subplot(311)
-
+    plt.ylim(5000,12000 ) 
     plt.plot(np.arange(nReps*propagationSteps,propagationSteps+nReps*propagationSteps+1),np.array(v_ref_list)*au2wn)
     plt.subplot(312) 
+    plt.ylim(0,N_size*1.2) 
     plt.plot(np.arange(nReps*propagationSteps,propagationSteps+nReps*propagationSteps+1),np.array(pop_list))
 
     for tauDW in [descendantSteps]:#,2*descendantSteps,3*descendantSteps,4*descendantSteps,5*descendantSteps]:
@@ -81,6 +82,7 @@ for iwfn in range(nReps):
                                         weights=descendantWeights)
         bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
         plt.subplot(313)
+        plt.ylim(0,4)
         plt.plot(bin_center,HistTemp)#,color=linecolor[iwfn])
         WfnFixedNode.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-Start-Ground-Propagate-Asym-DW-Asym-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
 

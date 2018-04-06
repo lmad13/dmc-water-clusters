@@ -56,6 +56,7 @@ for iwfn in range(nReps):
     v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
 
     averaged_vref.append(np.average(np.array(v_ref_list[propagationSteps/2:])*au2wn))
+    print 'average v_ref from this sim is ', averaged_vref[-1]*au2wn,'1/cm'
     list_of_pop_list.append(pop_list)
     plt.figure(1)
     plt.subplot(311)
@@ -78,17 +79,25 @@ for iwfn in range(nReps):
         ##inputx=finalCoords
         parameterString=str(N_size)+'-'+str(nReps)+'-'+str(tauDW)+'-'+str(nRepsDW)
         Wfn.exportCoords(finalCoords,'Wfn-HOHOH-Tau/HOHOH-ExcitedRn-'+parameterString+'Eq-'+str(iwfn)+'.xyz',descendantWeights)
-
+        RnCoord,swapped=Wfn.molecule.calcRn(finalCoords)
+        HistTemp,bin_edges=np.histogram(RnCoord,bins=nBins,range=(-1.5,1.5),density=True,
+                                        weights=descendantWeights)
+        bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
+        plt.subplot(313)
+        plt.plot(bin_center,HistTemp)#,color=linecolor[iwfn])
 
 
 endtime=time.time()
+
 
 print 'average Energy:', np.average(averaged_vref), np.std(averaged_vref)
 
 print np.array(averaged_vref)
 print 'uncertainity',((np.max(averaged_vref)-np.min(averaged_vref))/(np.sqrt(2.0)*nReps))
 print 'that took', endtime-starttime, 'seconds and ', (endtime-starttime)/60.0 , 'minutes'
-
+plt.savefig(plotFileName+'.png')
+plt.show()
+plt.clf()
 
 
 
