@@ -131,9 +131,7 @@ class wavefunction:
             dx=self.diffuse()
             x=x+dx
 
-            #print ' step ',step,
             v=self.molecule.V(x)
-
 
             #Elimination of a random selection of walkers 
             #in the classically forbidden region
@@ -142,9 +140,9 @@ class wavefunction:
             Diff=N_r-P_d
             mask_survive=(Diff>0)
             nDeaths=np.sum(np.array(Diff<0).astype(int))
-            #survivors=x[mask_survive]
-            if step%printRate==0 and printCensus: print 'Census: Current Population:',self.currentPop,'Deaths:',nDeaths,
 
+            if step%printRate==0 and printCensus: print 'Census: Current Population:',self.currentPop,'Deaths:',nDeaths,
+            
             #LASSIE MODE
             #DEATH BY PEF HOLES
             mask_not_holes=(v>-0.0000005) #mask
@@ -152,61 +150,53 @@ class wavefunction:
             mask_survive=np.logical_and(mask_survive,mask_not_holes)
             if step%printRate==0 and printCensus: print 'Death by holes',np.sum(np.array(v<0.0).astype(int)),
             # removal of all walkers that cross and a random selection of walkers that are too close to the node
+
             if self.recrossing:
-                # m2=2*(massO+2*massH)*massConversionFactor
-                # m1=massH*massConversionFactor
-                #print 'in recrossing',
                 oldDist,swapped=self.molecule.calcRn(x-dx)
                 newDist,newswapped=self.molecule.calcRn(x)
                 crossed=(oldDist*newDist<0)
 
                 newReducedMass=self.molecule.calcReducedmass(x)
-                oldReducedMass=self.molecule.calcReducedmass(x-dx)
+                #oldReducedMass=self.molecule.calcReducedmass(x-dx)
                 #P_recrossDeath=np.exp(-2.0*(oldDist)*newDist*np.sqrt(oldReducedMass*newReducedMass)/self.dtau) ##mass is reduced mass!
-                P_recrossDeath=np.exp(-2.0*(oldDist)*newDist*newReducedMass/(self.dtau)) #
-                if len(swapped)>0 or len(newswapped)>0:print 'recrossing ',P_recrossDeath[swapped],P_recrossDeath[newswapped]
+                P_recrossDeath=np.exp(-2.00000000*(oldDist)*newDist*newReducedMass/(self.dtau)) #
+                #P_recrossDeath[newswapped]=10.0
+
                 #caution, this is clever, you are combining the probability of crossing and the probability of recrossing
-                #if self.plotting:
-                #    plt.scatter(x,P_recrossDeath)
-                #    plt.show()
                 N_r_recross=np.random.random(self.currentPop)
-                #N_r_recross=np.ones(self.currentPop)
                 Diff=N_r_recross-P_recrossDeath
-                mask_survive_recross=(Diff>0)
-                mask_died_by_recrossing=(Diff<0)
-                tempRecrossCensus=np.sum(np.array(Diff<0).astype(int))
-                mask_survive=np.logical_and(mask_survive, mask_survive_recross)
-                ###test for survival and make sure recrossed ones actually die and do not give birth!!!
-
-                ##rather than combine crossing and recrossing, separate them out
-
-                #1)#make a recross random number
-
-                #0)#compared dmc_e_norec.out #set random number generator to be 1 so that only the crossed walkers will die and not the recrossing correction
-                if len(swapped)>0 or len(newswapped)>0 : print 'did they survive?',mask_survive[swapped], mask_survive[newswapped],v[swapped],v[newswapped]
+                mask_survive_recross=(Diff>0.000000)
+                mask_died_by_recrossing=(Diff<0.00000)
+                tempRecrossCensus=np.sum(np.array(Diff<0.0000000).astype(int))
+                mask_survive=np.logical_and(mask_survive,mask_survive_recross)
+                if len(newswapped)>0: print step,'     new swapped walkers that survived:',newswapped,'crossed:',crossed[newswapped],'died by recrossing:',mask_died_by_recrossing[newswapped],'survived:',mask_survive[newswapped]
+                if len(swapped)>0: print step,'     swapped walkers that survived',swapped, 'crossed:',crossed[swapped],'died by recrossing:',mask_died_by_recrossing[swapped],'survived:',mask_survive[swapped]
+                #if len(swapped)>0 or len(newswapped)>0:print 'P_rec death: ',P_recrossDeath[swapped],P_recrossDeath[newswapped],
+                #if len(swapped)>0 or len(newswapped)>0 : print 'did they survive?',mask_survive[swapped], mask_survive[newswapped],v[swapped],v[newswapped]
                 if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ',tempRecrossCensus, 'crossed',np.sum(crossed.astype(int))
-                #if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ', newDist[mask_died_by_recrossing]
-                        
+
+
+
             survivors=x[mask_survive]            
 
-#Creation of a random selection of walkers in the classically allowed region and who did not die by recrossing, so the survivors
+            # Creation of a random selection of walkers in the classically allowed region and who did not die by recrossing, so the survivors
         
             P_exp_b=np.exp(-(v-v_ref)*self.dtau)-1.0
-
-            #test if this is actually working by turning this off...
-            if self.recrossing:
-                P_exp_b[crossed]=0.00000  #if it crossed, the probability that it gives birth should be zero
-                
-            P_exp_b[inHole]=0.00000  #if it fell in a hole
+            P_exp_b[np.logical_not(mask_survive)]=0.000000 #BECAUSE THE DEAD CANNOT REPRODUCE!! NO ZOMBIE MOTHERS!!
+            
+            #no really, this is important! it can cause at least a 3% difference in the energy!
+            #if self.recrossing:
+            #    #P_exp_b[mask_died_by_recrossing]=0.00000  #if it crossed, the probability that it gives birth should be zero
+            #    P_exp_b[crossed]=0.00000  #if it crossed, the probability that it gives birth should be zero   
+            #P_exp_b[inHole]=0.00000  #if it fell in a hole
 
             weight_P_b=P_exp_b.astype(int)
             P_b=P_exp_b-weight_P_b            #classically allowed region                            
-            # P_b[np.logical_not(mask_survive)]=0.0                                       
             
             Diff=N_r-P_b
             mask_b = (Diff<0)
             if self.recrossing:
-                if len(swapped)>0 or len(newswapped)>0 : print np.any(mask_b[swapped])
+                if len(swapped)>0 or len(newswapped)>0 : print 'were any swapped walkers parents?', np.any(mask_b[swapped])
             next_gen=x[mask_b]
             new_pop_whoYaFrom=whoYaFrom[mask_b]
             nBirths=np.sum(np.array(Diff<0).astype(int))
@@ -216,12 +206,12 @@ class wavefunction:
            #for the additional births                                                   
             for n,(particle,weight) in enumerate(zip(x,weight_P_b)):
                 if weight>0: #i.e. the dead can't reproduce                              
-                    #print 'weight for tiling:', weight, n
                     if weight>10:
                         #this really shouldn't happen                                   
                         print 'weight of ',n,' is too big, resetting to 0'
                         print v[n]*au2wn,'<',v_ref*au2wn, weight, '\n',x[n]
                         print 'is it in a hole?',inHole[n], P_exp_b[n]
+                        print 'this really should not be happening is a sign of a larger issue!'
                         weight=0
 
                     addBirthtot=addBirthtot+weight
@@ -230,19 +220,17 @@ class wavefunction:
                     for i in range(weight-1):
                         temp=np.concatenate((temp,np.array([particle])))
                         temp_whoYaFrom=np.concatenate((temp_whoYaFrom,np.array([whoYaFrom[n]])))
-#                    temp=np.tile(particle,weight)
-#                    temp=np.reshape(temp,(weight,self.nAtoms,self.nDim))
-#                    temp_whoYaFrom=np.tile(whoYaFrom[n],weight)
 
                     new_pop=np.concatenate((new_pop,temp))
                     new_pop_whoYaFrom=np.concatenate((new_pop_whoYaFrom,temp_whoYaFrom))
 
             next_gen=new_pop
             next_gen_whoYaFrom=new_pop_whoYaFrom
+
             #collect survivors and next generation                                       
             new_population=np.concatenate((survivors,next_gen))
             whoYaFrom=np.concatenate((whoYaFrom[mask_survive],next_gen_whoYaFrom))
-            #print 'shapes for next cycle:',new_population.shape,whoYaFrom.shape
+
             x=new_population
             
             #let's make sure none of the walkers crossed to the other side...

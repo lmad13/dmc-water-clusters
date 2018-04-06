@@ -102,12 +102,12 @@ class molecule:
             #        v[np.array(swap)]=1000.00
             #        print 'v after', v[swap]
             if self.side=='Right':      
-                #self.sortProtons()
-                r,swap=self.calcStretchAnti(x)
+                swap=self.sortProtons()
+                r=self.calcStretchAnti(x)
                 v[(r<0)]=1000.00
             elif self.side=='Left':
-                #self.sortProtons()
-                r,swap=self.calcStretchAnti(x)
+                swap=self.sortProtons()
+                r=self.calcStretchAnti(x)
                 v[(r>0)]=1000.00
             else:
                 donothing=1
@@ -357,12 +357,23 @@ class molecule:
         #once each time step, but there are many places where we'd need the protons to be sorted appropriately and automatically
         #so we'll just have to work on speed ups in here rather than frugal calling of this method.
         #print 'sorting protons'
+        if self.name not in DeprotonatedWaterDimer:
+            print 'failed! wrong molecule!', end
         H0O1=self.bondlength(x,atom1=0 ,atom2=1)
         H0O3=self.bondlength(x,atom1=0 ,atom2=3)
         H2O1=self.bondlength(x,atom1=2 ,atom2=1)
         H2O3=self.bondlength(x,atom1=2 ,atom2=3)
         H4O1=self.bondlength(x,atom1=4 ,atom2=1)
         H4O3=self.bondlength(x,atom1=4 ,atom2=3)
+        midpoint=(x[:,1,:]+x[:,3,:])/2.0
+        H0M=self.mag(x[:,0,:]-midpoint)
+        H2M=self.mag(x[:,2,:]-midpoint)
+        H4M=self.mag(x[:,4,:]-midpoint)
+        DistanceToMidPt=np.array(zip(H0M,H2M,H4M))
+        
+        H0H2=self.bondlength(x,atom1=0 ,atom2=2)
+        H0H4=self.bondlength(x,atom1=0 ,atom2=4)
+        H2H4=self.bondlength(x,atom1=2 ,atom2=4)
 
         aveOH0=np.average(zip(H0O1,H0O3),axis=1)
         aveOH2=np.average(zip(H2O1,H2O3),axis=1)
@@ -372,27 +383,30 @@ class molecule:
 
         OH1DistAll=np.array(zip(H0O1,H2O1,H4O1))
         sortByAveragesAll=np.argsort(averagesAll,axis=1)
-
-        checkSortNeed=np.logical_not(sortByAveragesAll[:,0]==0)
+        sortByDistToMP=np.argsort(DistanceToMidPt,axis=1)
+        #checkSortNeed=np.logical_not(sortByAveragesAll[:,0]==0)
+        checkSortNeed=np.logical_not(sortByDistToMP[:,0]==0)
         
         #print 'checkSortNeed sample', sortByAveragesAll[0:10],checkSortNeed[0:10]
         listOfSwapped=[]
         if np.any(checkSortNeed):
-            
-            print checkSortNeed, np.where(checkSortNeed)
-            fileout=open('swappyCoordinates.xyz','a')
-            print 'x shape',x.shape
+            #print np.where(checkSortNeed),
+            #fileout=open('swappyCoordinates.xyz','a')
             for m in np.where(checkSortNeed):
                 n=m[0]
                 sortByAverages=sortByAveragesAll[n]
+                sortByMPdist=sortByDistToMP[n]
                 
                 protonIndices=np.array([0,2,4])
                 averages=averagesAll[n]
                 OH1Dist=OH1DistAll[n]
                 
-                centralProtonIndex=protonIndices[sortByAverages][0]
-                outerOHIndex=protonIndices[sortByAverages][1:]
-                outerOHDist=OH1Dist[sortByAverages][1:]
+                #centralProtonIndex=protonIndices[sortByAverages][0]
+                centralProtonIndex=protonIndices[sortByMPdist][0]
+                #outerOHIndex=protonIndices[sortByAverages][1:]
+                outerOHIndex=protonIndices[sortByMPdist][1:]
+                #outerOHDist=OH1Dist[sortByAverages][1:]
+                outerOHDist=OH1Dist[sortByMPdist][1:]
 
                 sortByHO1Dist=np.argsort(outerOHDist)
                 H2primeIndex=outerOHIndex[sortByHO1Dist][0]
@@ -402,23 +416,26 @@ class molecule:
                 positionH2prime=np.argmin(OH1Dist)*2
                 positionH4prime=np.argmax(OH1Dist)*2
                 if not (centralProtonIndex==0 and H2primeIndex==2 and H4primeIndex==4):
-                    print 'walker',n
+                    print 'sorted walker',n,
                     print 'first AverageOH:      ', averages
                     print 'second, O1-H dis:    ',OH1Dist
                     print 'and third, O2-H dis: ',np.array([H0O3[n],H2O3[n],H4O3[n]])
+                    print 'HH distances', H0H2[n],H0H4[n],H2H4[n]
+                    print 'Distance to midpoint:', DistanceToMidPt[n]
+                    print 'Order from sort by averages',sortByAverages,'order from sort by dist to MP',sortByDistToMP[n]
                     #print centralProtonIndex,H2primeIndex,H4primeIndex, '=?=',            
                     #print positionH0prime,positionH2prime, positionH4prime
                     print x[n]
-                    self.printCoordsToFile([x[n]],fileout)
-                    
+                    #self.printCoordsToFile([x[n]],fileout)
+                    #print 'no swap!'
                     x[n][[0,1,2,3,4]]=x[n][[centralProtonIndex,1,H2primeIndex,3,H4primeIndex]]
-                    self.printCoordsToFile([x[n]],fileout)
-                    print 'finally \n',x[n]
+                    #self.printCoordsToFile([x[n]],fileout)
+                    #print 'finally \n',x[n]
                     listOfSwapped.append(n)
                     
         #I might not have to sort all of them!
         
-            fileout.close
+            #fileout.close
         return listOfSwapped
 
     def printCoordsToFile(self,x,fileout):
@@ -472,6 +489,7 @@ class molecule:
         return Rock1,Rock3
     def calcOHBondLenghts(self,x):
         if self.name in DeprotonatedWaterDimer:
+            swap=self.sortProtons(x)
             OH1,OH2=self.calcLocalOH(x)
             return OH1,OH2,self.calcStretchSym(x),self.calcStretchAnti(x)
         else:
@@ -505,13 +523,14 @@ class molecule:
         #print 'calculating StretchAnti'
         if self.name in DeprotonatedWaterDimer:
             #print 'calculatingStretchAnti',
-            listOfSwapped=self.sortProtons(x)
+            #listOfSwapped=self.sortProtons(x)
+            #listOfSwapped=[]
             r1=self.bondlength(x,atom1=1,atom2=2)
             r2=self.bondlength(x,atom1=3,atom2=4)
             
             #print '3 averages',np.average(r1), np.average(r2) , np.average(r1-r2), ' --- '
             #return (r1-r2), listOfSwapped
-            return np.sqrt(0.5)*(r1-r2), listOfSwapped
+            return np.sqrt(0.5)*(r1-r2)#, listOfSwapped
 
     def calcStretchSym(self,x):
         if self.name in DeprotonatedWaterDimer:
@@ -523,19 +542,20 @@ class molecule:
             return self.bondlength(x,atom1=1,atom2=2),self.bondlength(x,atom1=3,atom2=4)
 
     def calcRn(self,x):
+        listOfSwapped=self.sortProtons(x)
         if self.surfaceName=='SharedProton':
-            return self.calcSharedProtonDisplacement(x)
+            rncoord=self.calcSharedProtonDisplacement(x)
         elif self.surfaceName=='StretchAntiIn':
             rncoord=self.calcStretchAntiIn(x)
             return rncoord
         elif self.surfaceName=='OHStretchAnti':
             #print 'from calcRN',
-            rn,listOfSwapped=self.calcStretchAnti(x)
+            rncoord=self.calcStretchAnti(x)
 
-            return rn,listOfSwapped
         elif self.surfaceName=='LocalOHStretch':
             return AVERAGEGroundStateOH-self.calcLocalOH(x)
 
+        return rncoord,listOfSwapped
 
     def bondlength(self,pos,atom1=1,atom2=3):
         length=(pos[:,atom1,0]-pos[:,atom2,0])**2+(pos[:,atom1,1]-pos[:,atom2,1])**2+(pos[:,atom1,2]-pos[:,atom2,2])**2
