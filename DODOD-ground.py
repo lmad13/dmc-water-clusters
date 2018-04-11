@@ -58,7 +58,7 @@ for iwfn in range(nReps):
         descendantWeights=descendantWeights/nRepsDW
         #inputx=finalCoords                        
 
-        ASymCoord,swapped=Wfn.molecule.calcStretchAnti(finalCoords)
+        ASymCoord=Wfn.molecule.calcStretchAnti(finalCoords)
         HistTemp,bin_edges=np.histogram(ASymCoord,bins=nBins,range=(-1.5,1.5),density=True,
                                         weights=descendantWeights)
         bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0

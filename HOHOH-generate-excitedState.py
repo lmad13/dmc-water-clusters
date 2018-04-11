@@ -56,7 +56,7 @@ for iwfn in range(nReps):
     v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
 
     averaged_vref.append(np.average(np.array(v_ref_list[propagationSteps/2:])*au2wn))
-    print 'average v_ref from this sim is ', averaged_vref[-1]*au2wn,'1/cm'
+    print 'average v_ref from this sim is ', averaged_vref[-1],'1/cm'
     list_of_pop_list.append(pop_list)
     plt.figure(1)
     plt.subplot(311)
@@ -90,7 +90,7 @@ for iwfn in range(nReps):
 endtime=time.time()
 
 
-print 'average Energy:', np.average(averaged_vref), np.std(averaged_vref)
+print '\n   Average Energy:', np.average(averaged_vref), np.std(averaged_vref)
 
 print np.array(averaged_vref)
 print 'uncertainity',((np.max(averaged_vref)-np.min(averaged_vref))/(np.sqrt(2.0)*nReps))
