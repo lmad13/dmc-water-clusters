@@ -152,14 +152,16 @@ class wavefunction:
             # removal of all walkers that cross and a random selection of walkers that are too close to the node
 
             if self.recrossing:
-                oldDist,swapped=self.molecule.calcRn(x-dx)
-                newDist,newswapped=self.molecule.calcRn(x)
+                #oldDist,swapped=self.molecule.calcRn(x-dx)
+                #newDist,newswapped=self.molecule.calcRn(x)
+                oldDist=self.molecule.calcRn(x-dx)
+                newDist=self.molecule.calcRn(x)
                 crossed=(oldDist*newDist<0)
 
                 newReducedMass=self.molecule.calcReducedmass(x)
-                #oldReducedMass=self.molecule.calcReducedmass(x-dx)
-                #P_recrossDeath=np.exp(-2.0*(oldDist)*newDist*np.sqrt(oldReducedMass*newReducedMass)/self.dtau) ##mass is reduced mass!
-                P_recrossDeath=np.exp(-2.00000000*(oldDist)*newDist*newReducedMass/(self.dtau)) #
+                oldReducedMass=self.molecule.calcReducedmass(x-dx)
+                P_recrossDeath=np.exp(-2.0*(oldDist)*newDist*np.sqrt(oldReducedMass*newReducedMass)/self.dtau) ##mass is reduced mass!
+                #P_recrossDeath=np.exp(-2.00000000*(oldDist)*newDist*newReducedMass/(self.dtau)) #
                 #P_recrossDeath[newswapped]=10.0
 
                 #caution, this is clever, you are combining the probability of crossing and the probability of recrossing
