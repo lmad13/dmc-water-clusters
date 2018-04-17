@@ -27,7 +27,7 @@ class wavefunction:
         self.set_dtau(dtau=dtau)
         self.mass=self.molecule.get_mass()
         self.sigma_dx=(2.0000*self.D*self.dtau/self.mass)**0.5
-        self.alpha=.5/self.dtau
+        self.alpha=.50/self.dtau
         self.recrossing=False
 
     def setNodalSurface(self,surfaceName,side='Both'):
@@ -43,6 +43,7 @@ class wavefunction:
         
     def set_dtau(self,dtau=10.0):
         self.dtau=dtau
+        
         print 'dtau is ', self.dtau, 'imaginary atomic time units'
 
     def loadDict(self,fileName):
@@ -171,8 +172,8 @@ class wavefunction:
                 mask_died_by_recrossing=(Diff<0.00000)
                 tempRecrossCensus=np.sum(np.array(Diff<0.0000000).astype(int))
                 mask_survive=np.logical_and(mask_survive,mask_survive_recross)
-                if len(newswapped)>0: print step,'     new swapped walkers that survived:',newswapped,'crossed:',crossed[newswapped],'died by recrossing:',mask_died_by_recrossing[newswapped],'survived:',mask_survive[newswapped]
-                if len(swapped)>0: print step,'     swapped walkers that survived',swapped, 'crossed:',crossed[swapped],'died by recrossing:',mask_died_by_recrossing[swapped],'survived:',mask_survive[swapped]
+                #if len(newswapped)>0: print step,'     new swapped walkers that survived:',newswapped,'crossed:',crossed[newswapped],'died by recrossing:',mask_died_by_recrossing[newswapped],'survived:',mask_survive[newswapped]
+                #if len(swapped)>0: print step,'     swapped walkers that survived',swapped, 'crossed:',crossed[swapped],'died by recrossing:',mask_died_by_recrossing[swapped],'survived:',mask_survive[swapped]
                 #if len(swapped)>0 or len(newswapped)>0:print 'P_rec death: ',P_recrossDeath[swapped],P_recrossDeath[newswapped],
                 #if len(swapped)>0 or len(newswapped)>0 : print 'did they survive?',mask_survive[swapped], mask_survive[newswapped],v[swapped],v[newswapped]
                 if step%printRate==0 and  printCensus: print 'Deaths by recrossing: ',tempRecrossCensus, 'crossed',np.sum(crossed.astype(int))
@@ -197,8 +198,8 @@ class wavefunction:
             
             Diff=N_r-P_b
             mask_b = (Diff<0)
-            if self.recrossing:
-                if len(swapped)>0 or len(newswapped)>0 : print 'were any swapped walkers parents?', np.any(mask_b[swapped])
+            #if self.recrossing:
+                #if len(swapped)>0 or len(newswapped)>0 : print 'were any swapped walkers parents?', np.any(mask_b[swapped])
             next_gen=x[mask_b]
             new_pop_whoYaFrom=whoYaFrom[mask_b]
             nBirths=np.sum(np.array(Diff<0).astype(int))
@@ -261,11 +262,82 @@ class wavefunction:
             descendants[anc]=descendants[anc]+1
         sys.stdout.flush()
         return  vRefList, population, x, descendants
-    
+    def LoadG(self,GfileName,eckRotcoords,DW):
+        if not os.path.isfile(GfileName):
+            gnm=self.molecule.calculateG(eckRotcoords,DW)
+            np.savetxt(GfileName,gnm)
+        np.loadtxt(GfileName)
+
+    def diagonalizeRootG(self,G):
+        w,v=np.linalg.eigh(G)
+        #np.savetxt('avg_g-postHouse.data',np.transpose(v))
+        #np.savetxt('alpha.data',w)
+        vinv=np.linalg.inv(v)
+        invRootDiagG=np.diag(1.0/np.sqrt(w))  #1.0/rootDiagG  #MAYBE THIS IS OK??                                                                                       
+        for i,ValinvRootDiagG in enumerate(invRootDiagG):#range(self.nVibs):                                                                                            
+            print 'alp[',i,']',ValinvRootDiagG[i]
+        invRootG=np.dot(v,np.dot(invRootDiagG,v.transpose()))
+        invG=np.dot(invRootG,invRootG.transpose())
+        checkG=np.linalg.inv(invG)
+        print 'check G', checkG
+        #self.GHalfInv=invRootG
+        return  invRootG
+
+    def calculateSecondMoments(self,x):
+        print '\n\ncalled second Moment Calculation on Internals'
+        print 'first calculating the internals'
+        print 'not yet implemented!'
+        return 0
+        averageInternals=np.zeros(self.molecule.nVibs)
+
+        for n,ensemble in enumerate(self.wavefunctionList):
+            print 'working on',n,'(# ',self.wavefunctionIDList[n],')'
+            ensemble.internals=ensemble.SymInternals(ensemble.eckartRotxSym)
+            if n==0:
+                collectedInternals=ensemble.internals
+                collectedWeights=ensemble.averageWeightSym['V0Discrete']
+            else:
+                collectedInternals=np.append(collectedInternals,ensemble.internals, axis=0)
+                collectedWeights=np.append(collectedWeights,ensemble.averageWeightSym['V0Discrete'],axis=0)
+                print collectedInternals.shape
+            ensemble.printCoordinate(np.average(ensemble.internals,axis=0, weights=ensemble.averageWeightSym['V0Discrete']),'wfn'+str(self.wavefunctionIDList[n])+'inter\
+nalCoordinates')
+            ensemble.printCoordinate(np.std(ensemble.internals,axis=0),'wfn'+str(self.wavefunctionIDList[n])+'standard-deviation-internalCoordinates')
+            print '  compare these',np.sum(ensemble.averageWeightSym['V0Discrete']),ensemble.nDescendantsSymTot,ensemble.nDescendantsSymTot['V0Discrete']
+            print 'averge of dot prod thing',ensemble.printCoordinate(np.dot(ensemble.averageWeightSym['V0Discrete'],ensemble.internals)/ensemble.nDescendantsSymTot['V0\
+Discrete'],'wfn'+str(self.wavefunctionIDList[n])+'FROMDOTPRODinternalCoordinates')
+            averageInternals=averageInternals+np.dot(ensemble.averageWeightSym['V0Discrete'],ensemble.internals)
+            sumDesc=sumDesc+ensemble.nDescendantsSymTot['V0Discrete']
+            ###                                                                                                                                                          
+        print collectedInternals.shape
+        print 'collecting Internals'
+        for qn in range(len(averageInternals)):
+            print 'internal',self.wavefunctionList[0].internalName[qn],':',
+            print collectedInternals.shape, collectedInternals[:,qn].shape
+            minVal=np.min(collectedInternals[:,qn])
+            maxVal=np.max(collectedInternals[:,qn])
+            print 'max: ', maxVal, 'min:',minVal
+            Hist,bin_edges=np.histogram(collectedInternals[:,qn],bins=NBINS,range=(minVal,maxVal),weights=collectedWeights)
+            width=0.7*(bin_edges[1]-bin_edges[0])
+            center=(bin_edges[:-1]+bin_edges[1:])/2.0
+            plt.plot(center,Hist)
+            plt.savefig(self.wavefunctionList[0].internalName[qn]+'Histogram-AVERAGED.png')
+
+
+
+    def calculateSpectrum(self, coords,dw,GfileName):
+        eckRotcoords=self.molecule.eckartRotate(coords)
+        G=self.LoadG(GfileName,eckRotcoords)
+        GHalfInv=self.diagonalizeRootG(G)
+        secondMoments=self.calculateSecondMoments(self,coords,dw)
+        return
+
+
 #wavefunction
 #initialize
 
 #propagate
 
 #calculate V
+
 
