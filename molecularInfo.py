@@ -40,6 +40,8 @@ class molecule:
                 self.names=['H','O','D','O','D']
             elif self.isotope=='fullyDeuterated':
                 self.names=['D','O','D','O','D']
+            elif self.isotope=='notDeuterated':
+                self.names=['H','O','H','O','H']
             print 'atoms are now', self.names
     def setNodalSurface(self,surfaceName,side):
         self.surfaceName=surfaceName
