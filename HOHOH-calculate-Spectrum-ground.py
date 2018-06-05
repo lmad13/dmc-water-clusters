@@ -47,7 +47,9 @@ list_of_pop_list=[]
 
 Wfn=dmc.wavefunction('HOHOH', N_size)
 Wfn.setNodalSurface('OHStretchAnti','Both')
-
+gatheredSymEckRotCoords=[]
+gatheredSymDW=[]
+nWalkersTotal=0
 #for each iwfn in nReps, 
 for iwfn in range(nStart,nReps):
     print '   REPETITION NUMBER: ', iwfn
@@ -63,6 +65,14 @@ for iwfn in range(nStart,nReps):
     symCoords,symDW=Wfn.molecule.symmetrizeCoordinates(GroundCoords,groundDW)
 
     symEckRotCoords=Wfn.molecule.eckartRotate(symCoords)
+    nWalkersTotal+=symCoords.shape[0]
+
+    if iwfn==nStart:
+        gatheredSymEckRotCoords=symEckRotCoords
+        gatheredSymDW=symDW
+    else:
+        gatheredSymEckRotCoords=np.append(gatheredSymEckRotCoords,symEckRotCoords,axis=0)
+        gatheredSymDW=np.append(gatheredSymDW,symDW,axis=0)
 
     fileOut=open('symEckRotCoords.xyz', 'w')
     Wfn.molecule.printCoordsToFile(symEckRotCoords,fileOut)
@@ -79,16 +89,31 @@ for iwfn in range(nStart,nReps):
 
 
 
-    #GfileName='TheGMatrix-symmetrized'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
-    GfileName='TheGMatrix-symmetrized-all-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
+    GfileName='TheGMatrix-symmetrized'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
+    #GfileName='TheGMatrix-symmetrized-all-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
     
     #GfileName='TheGMatrix.gmat'
-
     
     HOASpectrum=CalculateSpectrum.HarmonicApproxSpectrum(Wfn,symEckRotCoords,symDW,path=path)
     #HOASpectrum.calculateG(symEckRotCoords,symDW)
-    HOASpectrum.calculateSpectrum(symEckRotCoords,symDW,path+GfileName)
-    
+    fundamentals,combinationBands=HOASpectrum.calculateSpectrum(symEckRotCoords,symDW,path+GfileName)
+    fundamentalFile=open(path+'Fundamentals-from-'+str(iwfn)+'.data','w')
+    for i,v in enumerate(fundamentals):
+        fundamentalFile.write(str(i)+"       "+str(v)+"\n")
+    fundamentalFile.close()
+
+#gatheredSymEckRotCoords=np.array(gatheredSymEckRotCoords).reshape(nWalkersTotal,Wfn.nAtoms,3)
+#gatheredSymDW=np.array(gatheredSymDW).reshape(nWalkersTotal)
+HOASpectrum=CalculateSpectrum.HarmonicApproxSpectrum(Wfn,gatheredSymEckRotCoords,gatheredSymDW,path=path)
+#HOASpectrum.calculateG(gatheredSymEckRotCoords,gatheredSymDW)
+GfileName='TheGMatrix-symmetrized-all-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
+fundamentals,combinationBands=HOASpectrum.calculateSpectrum(gatheredSymEckRotCoords,gatheredSymDW,path+GfileName)
+fundamentalFile=open(path+'Fundamentals-from-Wfns-'+str(nStart)+'-to-'+str(nReps)+'.data','w')
+for i,v in enumerate(fundamentals):
+    fundamentalFile.write(str(i)+"       "+str(v)+"\n")
+fundamentalFile.close()
+
+
     #print zip(Wfn.molecule.internalName,np.average(internals,weights=symDW,axis=0)*Wfn.molecule.internalConversion)
     
 #    Wfn.LoadG(groundPath+GfileName,symEckRotCoords,symDW)

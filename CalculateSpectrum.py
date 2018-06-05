@@ -207,7 +207,7 @@ class HarmonicApproxSpectrum(object):
         
         fundamentalFile.close()
         comboFile.close
-        
+        return Eq*au2wn, Eq2d*au2wn
 
     def calculatePotentialEnergy(self,coords,dw):
         equilibriumEnergy=self.wfn.molecule.getEquilibriumEnergy()
