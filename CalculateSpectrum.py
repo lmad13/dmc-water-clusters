@@ -58,14 +58,7 @@ class HarmonicApproxSpectrum(object):
                 coordMinus=self.wfn.molecule.SymInternals(self.wfn.molecule.eckartRotate(eckartRotatedCoords-deltax))
 
                 partialderv=(coordPlus-coordMinus)/(2.0*dx)
-                
-                #print atom,',',coordinate,'from first walker'
-                #print 'eckRotCoords',eckartRotatedCoords[0]
-                #print 'deltax',deltax[0]
-                #print 'coordPlus', coordPlus[0]
-                #print 'coordMinus',coordMinus[0]
-                #print 'partialderv', partialderv[0]
-                #person = input('pausing ')
+
                 timegnm=time.time()
 
                 LastPartialDerv2MassWeighted=0
@@ -96,8 +89,6 @@ class HarmonicApproxSpectrum(object):
 
     def diagonalizeRootG(self,G):
         w,v=np.linalg.eigh(G)
-        #np.savetxt('avg_g-postHouse.data',np.transpose(v))
-        #np.savetxt('alpha.data',w)
         vinv=np.linalg.inv(v)
         invRootDiagG=np.diag(1.0/np.sqrt(w))  #1.0/rootDiagG  #MAYBE THIS IS OK??                                                                                       
         for i,ValinvRootDiagG in enumerate(invRootDiagG):#range(self.nVibs):                                                                                            
@@ -105,7 +96,6 @@ class HarmonicApproxSpectrum(object):
         invRootG=np.dot(v,np.dot(invRootDiagG,v.transpose()))
         invG=np.dot(invRootG,invRootG.transpose())
         checkG=np.linalg.inv(invG)
-        #print 'check G', checkG
         #self.GHalfInv=invRootG
         return  invRootG
 
@@ -139,17 +129,17 @@ class HarmonicApproxSpectrum(object):
 
         #internals=self.molecule.SymInternals(coords)
         moments,secondMoments=self.calculateSecondMoments(coords,dw)
-        
+
         q,q2,q4=self.calculateQCoordinates(moments,secondMoments,dw)
         q4ave=np.average(q4,axis=0,weights=dw)
         q2ave=np.average(q2,axis=0,weights=dw)
         qave =np.average(q,axis=0,weights=dw)
-        print '/\/\/\/\/\/\/\/\/\/\ '
-        print 'some averages', 
-        print 'q\n',qave
-        print 'q^2 \n',q2ave
-        print 'q^4 \n',q4ave
-        print '/\/\/\/\/\/\/\/\/\/\ '
+        if verbose: print '/\/\/\/\/\/\/\/\/\/\ '
+        if verbose: print 'some averages', 
+        if verbose: print 'q\n',qave
+        if verbose: print 'q^2 \n',q2ave
+        if verbose: print 'q^4 \n',q4ave
+        if verbose: print '/\/\/\/\/\/\/\/\/\/\ '
 
         potentialEnergy=self.calculatePotentialEnergy(coords,dw)
 
@@ -166,8 +156,8 @@ class HarmonicApproxSpectrum(object):
     
         q2ave2d=q2ave2d/np.sum(dw)
         
-        print 'average v_0',V_0*au2wn
-        print 'Vq', Vq*au2wn
+        if verbose: print 'average v_0',V_0*au2wn
+        if verbose: print 'Vq', Vq*au2wn
 
         #What's the difference with alpha??
         alpha=q2ave/(q4ave-q2ave**2)
@@ -194,18 +184,29 @@ class HarmonicApproxSpectrum(object):
             
         Eq2d=(Vq2d+Tq2d)-V_0
         Eq=(Vq/q2ave+Tq)-V_0
-        print 'alpha         Vq            Vq/q2ave        Tq         Eq'
+        print 'm alpha           Vq            Vq/q2ave      Tq            Eq'
+
         for i in range(9):
-            print alpha[i], au2wn*Vq[i], au2wn*Vq[i], Vq[i]/q2ave[i]*au2wn, Eq[i]*au2wn
+            print i, alpha[i], au2wn*Vq[i], au2wn*Vq[i], Vq[i]/q2ave[i]*au2wn, Eq[i]*au2wn
             
-        print 'energies!', zip(Vq2d[0]*au2wn,Tq2d[0]*au2wn,Eq2d[0]*au2wn)
+        if verbose: print 'energies!', zip(Vq2d[0]*au2wn,Tq2d[0]*au2wn,Eq2d[0]*au2wn)
+        
+        print 'Spectrum Info'
+        fundamentalFileName=self.path+'fundamentals.data'
+        comboFileName=self.path+'combinationOverrtoneBands.data'
+        fundamentalFile=open(fundamentalFileName,'w')
+        comboFile=open(comboFileName,'w')
 
         for i in range(9):
             print Eq[i]*au2wn, 'mode ',i 
+            fundamentalFile.write(str( Eq[i]*au2wn)+"       "+str(i)+"\n")
         for i in range(9):
             for j in range(i):
                 print Eq2d[i,j]*au2wn , 'combination bands' , i,j
-
+                comboFile.write(str( Eq2d[i,j]*au2wn)+"       "+str(i)+" "+str(j)+"\n")
+        
+        fundamentalFile.close()
+        comboFile.close
         
 
     def calculatePotentialEnergy(self,coords,dw):
@@ -221,7 +222,6 @@ class HarmonicApproxSpectrum(object):
         mu2Ave=mu2Ave/2.000000000000
         GHalfInv=self.diagonalizeRootG(self.G)
         mu2AvePrime=np.dot(GHalfInv,np.dot(mu2Ave,GHalfInv))
-
         eigval,vects=np.linalg.eigh(mu2AvePrime)
 
         print 'diagonalized <mu^2>'
