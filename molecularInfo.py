@@ -12,6 +12,7 @@ massConversionFactor=1.000000000000000000/6.02213670000e23/9.10938970000e-28#182
 ang2bohr=1.88973
 bohr2ang=1.000/ang2bohr
 rad2deg=180.000/np.pi
+au2wn=219474.63
 global Water
 Water={'H2O', 'water', 'HOH', 'h2o'}
 global WaterDimer
@@ -24,7 +25,7 @@ ProtonatedWaterTrimer = {'H7O3+','O3H7+', 'H7O3plus','H7O3', 'O3H7'}
 ProtonatedWaterTetramer = {'H9O4+','O4H9+', 'H9O4plus','H9O4', 'O4H9'}
 IsotopeKeywords = {'notDeuterated','DeuteratedTwice','fullyDeuterated'}
 surfaceOptions= {'OHStretchAnti','StretchAntiIn','SharedProton','LocalOHStretch','Z-displacement','EckRotZ-displacement'}
-class molecule:
+class molecule (object):
     def __init__(self,moleculeName):
         self.name=moleculeName
         if self.name in DeprotonatedWaterDimer:
@@ -83,15 +84,33 @@ class molecule:
         return pathDict
     def loadRefCoord(self):
         if self.name in DeprotonatedWaterDimer:
-            
-
             coordsMin=np.array([[ 0.2981678882048853 ,   -2.4557992072743176E-002,  -5.5485232545510215E-002],
                              [ -2.354423404994569 ,     0.000000000000000     ,    0.000000000000000],
                              [ -2.858918674095194 ,     1.111268022307282     ,   -1.352651141853729],
                              [  2.354423404994569 ,     0.000000000000000     ,    0.000000000000000],
                              [  2.671741580470489 ,     1.136107563104921     ,    1.382886181959795]])
 
-        return coordsMin
+
+            coordsSADDLE=np.array([[ 0.000000000000000 , 0.000000000000000 , 0.000000000000000],
+                                   [ -2.303263755760085, 0.000000000000000 ,0.000000000000000 ],
+                                   [ -2.720583162407882, 1.129745554266140 ,-1.363735721982301   ],
+                                   [ 2.303263755760085, 0.000000000000000, 0.000000000000000     ],
+                                   [ 2.720583162407882, 1.129745554266140, 1.363735721982301]])
+            
+
+        return coordsSADDLE
+    
+    def getEquilibriumEnergy(self):
+        if self.name in DeprotonatedWaterDimer:
+            equilibriumCoords=np.array([[ 0.2981678882048853 , -2.4557992072743176E-002,  -5.5485232545510215E-002 ],
+                                        [  -2.354423404994569 ,   0.000000000000000   ,      0.000000000000000 ],
+                                        [  -2.858918674095194 ,   1.111268022307282   ,     -1.352651141853729 ],
+                                        [   2.354423404994569 ,   0.000000000000000  ,       0.000000000000000 ],
+                                        [   2.671741580470489 ,   1.136107563104921   ,      1.382886181959795]])
+            equilibriumE=self.V([equilibriumCoords])
+            #print 'equilibrium position',equilibriumCoords*bohr2ang, 'and energy:',equilibriumE*au2wn,'1/cm'
+        return equilibriumE
+
 
     def V(self,x):
         #print 'v',self.surfaceName,self.side,
@@ -138,7 +157,10 @@ class molecule:
         #print 'called SymInternals'
         #print 'returning values in bohr [or radians]'
         if self.name in DeprotonatedWaterDimer:        
-            return self.SymInternalsH3O2minus(x)
+            internals= self.SymInternalsH3O2minus(x)
+            #self.internalNames=internalNames
+            
+            return internals#,internalNames
         #elif self.molecule  in ProtonatedWaterDimer:
         #    return self.SymInternalsH5O2plus(x)
         #elif self.molecule in ProtonatedWaterTrimer:
@@ -148,6 +170,7 @@ class molecule:
         else:
             print 'woefully unprepared to handle the calculation of the SymInternals for ', self.molecule
             crash
+            
 
     def SymInternalsH3O2minus(self,x):
         #print 'calculating the internals...ver 1...'
@@ -161,16 +184,13 @@ class molecule:
         aHOO1=self.bondAngle(x,atom1=2, atom2=1, atom3=3)
         aHOO2=self.bondAngle(x,atom1=4, atom2=3, atom3=1)
         tHOOH,tRange=self.calcTorsion(x)
-        HdispX,HdispY, HdispZ = self.calcSharedProtonDisplacement(x)
+        HdispX,HdispY, HdispZ = self.calcSharedProtonCartDisplacement(x)
         
         #rn=self.calcRn(x)
         #NOW SYMETRIZE         
 
         rOH_s=np.sqrt(0.5)*(rOH1+rOH2) #symetric                                                    
         rOH_a=np.sqrt(0.5)*(rOH1-rOH2) #asym stretch                                                
-        #rOH_ai=0.5*(rOH1-rOH2+rOH3-rOH4) # in phase anti sym                                       
-        #rOH_ao=0.5*(rOH1-rOH2-rOH3+rOH4) #out of phase anti sym                                    
-
         aHOO_s=np.sqrt(0.5)*(aHOO1+aHOO2) #symetric                                                 
         aHOO_a=np.sqrt(0.5)*(aHOO1-aHOO2) #asymetric                                                
 
@@ -183,82 +203,10 @@ class molecule:
             internal = np.array(zip(rOH_s, rOH_a, rOO, aHOO_s, aHOO_a,tHOOH, HdispX,HdispY,HdispZ))
             #internal = np.array(zip(rOH_s, rOH_a, rOO, aHOO_s, aHOO_a,tHOOH, rn,HdispY,HdispZ))    
 
-#        self.internalName=['rOH_si', 'rOH_ai', 'rOH_so', 'rOH_ao', 'rHH_s', 'rHH_a','rHxO_si','rHxO_ai','HdispR','HdispTheta','HdispPhi','rOO','rHxO_so','rHxO_ao','d']
         self.internalName=['rOH_s', 'rOH_a', 'rOO', 'rHOO_s', 'rHOO_a', 'tHOOH','HdispX','HdispY','HdispZ']
         #self.internalName=['rOH_s', 'rOH_a', 'rOO', 'rHOO_s', 'rHOO_a', 'tHOOH','rn','HdispY','HdispZ']                                                                 
         self.internalConversion=[bohr2ang,bohr2ang,bohr2ang,rad2deg,rad2deg,rad2deg,bohr2ang,bohr2ang,bohr2ang]
         return internal
-
-            
-        
-
-    def calculateG(self,eckartRotatedCoords,descendantWeights):
-        #Input is x which is a NAtoms x 3(coordinates) sized array
-        #input is also dx, the perturbation size, usually .001                                                
-        #output is the G matrix, which is a self.nVibs*self.nVibs sized array (there are self.nVibs internals)
-
-        dx=1e-4
-        #wfn=self.wavefunctionList[0]
-
-        gnm=np.zeros((self.nVibs,self.nVibs))
-        start=time.time()
-        sumDescendants=0
-        mass=self.get_mass()
-
-        print 'what are we calculating the g matrix on here?', eckartRotatedCoords.shape
-        internal=self.SymInternals(eckartRotatedCoords)
-        
-        threwOut=0
-        print 'summing up the descendants', np.sum(descendantWeights)
-        sumDescendants=sumDescendants+np.sum(descendantWeights)
-        for atom in range(self.nAtoms):
-            for coordinate in range(3):
-                print 'dx number',atom*3+(coordinate+1), 'atom:',atom, 'coordinate',coordinate
-                deltax=np.zeros((eckartRotatedCoords.shape))
-                deltax[:,atom,coordinate]=deltax[:,atom,coordinate]+dx #perturbs the x,y,z coordinate of the atom of interest                                        
-                coordPlus=self.SymInternals(self.eckartRotate(eckartRotatedCoords+deltax))
-                #                    print 'coordPlus',coordPlus                                                    
-                coordMinus=self.SymInternals(self.eckartRotate(eckartRotatedCoords-deltax))
-                
-                #print 'drdxi = \n, drdxi.shape (',coordPlus.shape, coordMinus.shape,')', coordPlus-coordMinus                                                       
-                #print 'max, min, ave, stdev of coordPlus:\n',np.max(coordPlus,axis=0), np.min(coordPlus,axis=0),np.average(coordPlus,axis=0),np.std(coordPlus,axis=0)                             
-                #print 'max, min, ave, stdev of coordMinus:\n',np.max(coordMinus,axis=0), np.min(coordMinus,axis=0),np.average(coordMinus,axis=0),np.std(coordMinus,axis=0)                        
-                partialderv=(coordPlus-coordMinus)/(2.0*dx)
-                timegnm=time.time()
-                
-                LastPartialDerv2MassWeighted=0
-                #print 'max, min, ave, stdev of partialderv', np.max(partialderv,axis=0), np.min(partialderv,axis=0),np.average(partialderv,axis=0),np.std(partialderv,axis=0)                     
-                for i,pd in enumerate(partialderv):
-                    partialderv2=np.outer(pd,pd)
-                    #print 'zeros ?',partialderv2prime[i*self.nVibs:(i+1)*self.nVibs,i*self.nVibs:(i+1)*self.nVibs]-partialderv2                                     
-                    tempPartialDerv2MassWeighted=partialderv2*descendantWeights[i]/mass[atom]
-                    
-                    if np.any(tempPartialDerv2MassWeighted>1000000.0*dx):#(gnm[9,9]/(np.sum(self.Descendants[:i]))): $$$$$                                           
-                        print 'atom',atom, 'coordinate',coordinate, i,'temp',np.transpose(np.where(tempPartialDerv2MassWeighted>10000.0*dx)),'is too big'
-                        
-                        print 'tempPartialDerv2MassWeighted', tempPartialDerv2MassWeighted, '\n Descendants', descendantWeights[i]
-                        print 'coordinates \n', eckartRotatedCoords[i],'\n', eckartRotatedCoords[i]+deltax[i],'\n',eckartRotatedCoords[i]-deltax[i]
-                        print 'eckart rotate \n', coordPlus[i], coordMinus[i]
-                        print 'pd \n',pd
-
-                        gnm=gnm+LastPartialDerv2MassWeighted
-                        threwOut=threwOut+1
-                    else:
-                        gnm=gnm+tempPartialDerv2MassWeighted
-                        LastPartialDerv2MassWEighted=1.0*tempPartialDerv2MassWeighted
-            print 'gnmtiminging:',time.time()-timegnm
-        print "THREW OUT ", threwOut, " coordinates :-("
-        
-        
-        print 'timing for G matrix', time.time()-start
-        print 'dividing by ',sumDescendants
-        gnm=gnm/sumDescendants
-        return gnm
-
-    
-
-
-
 
     def eckartRotate(self,pos,specialCond=False):
         if len(pos.shape)<3:
@@ -575,7 +523,7 @@ class molecule:
                     print 'HH distances', H0H2[n],H0H4[n],H2H4[n],
                     print 'Distance to midpoint:', DistanceToMidPt[n],
                     print 'Order from sort by averages',sortByAverages,'order from sort by dist to MP',sortByDistToMP[n]
-                    #print centralProtonIndex,H2primeIndex,H4primeIndex, '=?=',            
+                    #print centralProtonIndex,H2primeIndex,HprimeIndex, '=?=',            
                     #print positionH0prime,positionH2prime, positionH4prime
                     #print x[n]
                     #self.printCoordsToFile([x[n]],fileout)
@@ -717,12 +665,14 @@ class molecule:
 
 
 
-    def calcSharedProtonDisplacement(self,x):
+    def calcSharedProtonCartDisplacement(self,x):
         # define midpoint
         OOMP=(x[:,1]+x[:,3])/2.0
         # define vector between O1 and MP
         OMPVec=x[:,1]-OOMP
-        ZVector=OMPVec/np.linalg.norm(OMPVec,axis=1)[:,None]
+        #ZVector=OMPVec/np.linalg.norm(OMPVec,axis=1)[:,None]
+        OOVec=x[:,3]-x[:,1]
+        ZVector=OOVec/np.linalg.norm(OOVec,axis=1)[:,None]
         # define H-OOMPvector
         HMP= x[:,0]-OOMP
         # calc projection of H onto O-MP vector, and the tada!
@@ -732,17 +682,34 @@ class molecule:
             projectionZ[i]=projectionZ[i]/np.linalg.norm(omp)            
         normO1H2=(x[:,2]-x[:,1])/np.linalg.norm(x[:,2]-x[:,1],axis=1)[:,None]
         normO3H4=(x[:,4]-x[:,3])/np.linalg.norm(x[:,4]-x[:,3],axis=1)[:,None]
-        XVector=(normO1H2+normO3H4)/np.linalg.norm(normO1H2+normO3H4,axis=1)[:,None]
-        projectionX=np.zeros(x.shape[0])
-        
-        for j,(xvec,hmp) in enumerate(zip(XVector,HMP)):
-            projectionX[i]=np.dot(hmp,xvec)
-        YVector=np.cross(XVector,ZVector)
-               
+        XVectorPrime=(normO1H2+normO3H4)/np.linalg.norm(normO1H2+normO3H4,axis=1)[:,None]
+
+        YVector=np.cross(XVectorPrime,ZVector)
+        YVector=YVector/np.linalg.norm(YVector,axis=1)[:,None]
+#        print 'y vec normalized?',np.linalg.norm(YVector,axis=1)
         projectionY=np.zeros(x.shape[0])
         for k,(yvec,hmp) in enumerate(zip(YVector,HMP)):
-            projectionY[i]=np.dot(hmp,yvec)
+            projectionY[k]=np.dot(hmp,yvec)
+
+        XVector=np.cross(ZVector,YVector)
+        XVector=XVector/np.linalg.norm(XVector,axis=1)[:,None]
+
+#        print 'normalized?' ,np.linalg.norm(XVector,axis=1)
+        projectionX=np.zeros(x.shape[0])        
+
+        for j,(xvec,hmp) in enumerate(zip(XVector,HMP)):
+            projectionX[j]=np.dot(hmp,xvec)
+
         
+        ###print 'is cart projection of shared proton even working???'
+        ###print 'Hdisp',HMP[0]
+        ###print 'Vectors \n',XVector[0],'\n', YVector[0],'\n', ZVector[0]
+        ###
+        ###print 'projections:',projectionX[0],projectionY[0],projectionZ[0]
+        ###
+        ###print 'min',np.min(projectionX),np.min(projectionY)
+        ###print 'max',np.max(projectionX),np.max(projectionY)
+
         return projectionX, projectionY, projectionZ
 
     def calcRn(self,x):
@@ -820,7 +787,7 @@ class molecule:
 
     def symmetrizeCoordinates(self,x,dw):
         if self.name in DeprotonatedWaterDimer:
-            xSym=np.concatenate((x, #1                                                                                                                
+            xSym=np.concatenate((x, #1     
                                  self.exchange(x,[(1,3),(2,4)]))) #2
             dwSym=np.concatenate((dw,dw))
         return xSym,dwSym

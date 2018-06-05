@@ -3,13 +3,14 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import molecularInfo
+import usefulFunctions as use
 
 au2wn=219474.63
 au2ang=0.529177249
 massConversionFactor=1.000000000000000000/6.02213670000e23/9.10938970000e-28#1822.88839 
 
 
-class wavefunction:
+class wavefunction (object):
 
     def __init__(self,moleculeName, nWalkers, potentialName='Ground State',dtau=10.0):
         self.molecule=molecularInfo.molecule(moleculeName)
@@ -122,7 +123,7 @@ class wavefunction:
         vRefList=[]
         vRefList.append(v_ref)
 
-        descendants=np.zeros((self.currentPop))
+        descendants=np.zeros(self.currentPop)
         whoYaFrom=np.arange(self.currentPop)
         
         printRate=100
@@ -262,75 +263,9 @@ class wavefunction:
             descendants[anc]=descendants[anc]+1
         sys.stdout.flush()
         return  vRefList, population, x, descendants
-    def LoadG(self,GfileName,eckRotcoords,DW):
-        if not os.path.isfile(GfileName):
-            gnm=self.molecule.calculateG(eckRotcoords,DW)
-            np.savetxt(GfileName,gnm)
-        np.loadtxt(GfileName)
-
-    def diagonalizeRootG(self,G):
-        w,v=np.linalg.eigh(G)
-        #np.savetxt('avg_g-postHouse.data',np.transpose(v))
-        #np.savetxt('alpha.data',w)
-        vinv=np.linalg.inv(v)
-        invRootDiagG=np.diag(1.0/np.sqrt(w))  #1.0/rootDiagG  #MAYBE THIS IS OK??                                                                                       
-        for i,ValinvRootDiagG in enumerate(invRootDiagG):#range(self.nVibs):                                                                                            
-            print 'alp[',i,']',ValinvRootDiagG[i]
-        invRootG=np.dot(v,np.dot(invRootDiagG,v.transpose()))
-        invG=np.dot(invRootG,invRootG.transpose())
-        checkG=np.linalg.inv(invG)
-        print 'check G', checkG
-        #self.GHalfInv=invRootG
-        return  invRootG
-
-    def calculateSecondMoments(self,x):
-        print '\n\ncalled second Moment Calculation on Internals'
-        print 'first calculating the internals'
-        print 'not yet implemented!'
-        return 0
-        averageInternals=np.zeros(self.molecule.nVibs)
-
-        for n,ensemble in enumerate(self.wavefunctionList):
-            print 'working on',n,'(# ',self.wavefunctionIDList[n],')'
-            ensemble.internals=ensemble.SymInternals(ensemble.eckartRotxSym)
-            if n==0:
-                collectedInternals=ensemble.internals
-                collectedWeights=ensemble.averageWeightSym['V0Discrete']
-            else:
-                collectedInternals=np.append(collectedInternals,ensemble.internals, axis=0)
-                collectedWeights=np.append(collectedWeights,ensemble.averageWeightSym['V0Discrete'],axis=0)
-                print collectedInternals.shape
-            ensemble.printCoordinate(np.average(ensemble.internals,axis=0, weights=ensemble.averageWeightSym['V0Discrete']),'wfn'+str(self.wavefunctionIDList[n])+'inter\
-nalCoordinates')
-            ensemble.printCoordinate(np.std(ensemble.internals,axis=0),'wfn'+str(self.wavefunctionIDList[n])+'standard-deviation-internalCoordinates')
-            print '  compare these',np.sum(ensemble.averageWeightSym['V0Discrete']),ensemble.nDescendantsSymTot,ensemble.nDescendantsSymTot['V0Discrete']
-            print 'averge of dot prod thing',ensemble.printCoordinate(np.dot(ensemble.averageWeightSym['V0Discrete'],ensemble.internals)/ensemble.nDescendantsSymTot['V0\
-Discrete'],'wfn'+str(self.wavefunctionIDList[n])+'FROMDOTPRODinternalCoordinates')
-            averageInternals=averageInternals+np.dot(ensemble.averageWeightSym['V0Discrete'],ensemble.internals)
-            sumDesc=sumDesc+ensemble.nDescendantsSymTot['V0Discrete']
-            ###                                                                                                                                                          
-        print collectedInternals.shape
-        print 'collecting Internals'
-        for qn in range(len(averageInternals)):
-            print 'internal',self.wavefunctionList[0].internalName[qn],':',
-            print collectedInternals.shape, collectedInternals[:,qn].shape
-            minVal=np.min(collectedInternals[:,qn])
-            maxVal=np.max(collectedInternals[:,qn])
-            print 'max: ', maxVal, 'min:',minVal
-            Hist,bin_edges=np.histogram(collectedInternals[:,qn],bins=NBINS,range=(minVal,maxVal),weights=collectedWeights)
-            width=0.7*(bin_edges[1]-bin_edges[0])
-            center=(bin_edges[:-1]+bin_edges[1:])/2.0
-            plt.plot(center,Hist)
-            plt.savefig(self.wavefunctionList[0].internalName[qn]+'Histogram-AVERAGED.png')
 
 
 
-    def calculateSpectrum(self, coords,dw,GfileName):
-        eckRotcoords=self.molecule.eckartRotate(coords)
-        G=self.LoadG(GfileName,eckRotcoords)
-        GHalfInv=self.diagonalizeRootG(G)
-        secondMoments=self.calculateSecondMoments(self,coords,dw)
-        return
 
 
 #wavefunction

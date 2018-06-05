@@ -6,7 +6,7 @@ import time
 import sys
 import os
 import glob
-import usefulFunctions as use
+#import usefulFunctions as use
 
 au2wn=219474.63
 nBins=51
@@ -89,16 +89,19 @@ for iwfn in range(nReps):
 
     Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
     Dipole=Wfn.molecule.calcDipole(finalCoords)
-
-    descendantWeights=np.zeros((finalCoords.shape[0]))
-
+    #print type(Rn), Rn.shape
+    descendantWeights=np.zeros(finalCoords.shape[0])
+    #print '1 original shape', descendantWeights.shape,type(descendantWeights)
     for ides in range(nRepsDW):
         print 'DW Rep Number',ides,
         v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size,printCensus=False)
-        descendantWeights=descendantWeights+descendantsTemp
+        #print '2',descendantsTemp.shape, type(descendantsTemp)
 
+        descendantWeights=descendantWeights+descendantsTemp
+        #print '3',descendantWeights.shape, type(descendantWeights)
+    
     descendantWeights=descendantWeights/nRepsDW
-    print ''
+    #print 'shapes',type(Rn),type(descendantWeights), Rn.shape,descendantWeights.shape
     Wfn.exportCoords(finalCoords,path+'Wfn-'+str(iwfn)+'-'+fileParameterName+'.xyz',descendantWeights)
     Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-2.5,2.5),density=True,weights=descendantWeights)
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0

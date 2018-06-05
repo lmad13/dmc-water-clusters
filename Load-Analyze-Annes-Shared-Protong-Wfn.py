@@ -6,6 +6,33 @@ import time
 import sys
 import glob
 
+def calcMass(self,particle,name):
+    dtau=self.Wfn.dtau
+
+    massH=1.00782503223
+    massD=2.0141017778
+    if particle=='H':
+        massHamu=massH*massConversionFactor
+    elif particle=='D':
+        massHamu=massD*massConversionFactor
+    if name=='SharedProton':
+        U=x[:,1,:]-x[:,0,:]
+        V=x[:,3,:]-x[:,0,:]
+        magU=np.sqrt(U[:,0]**2+U[:,1]**2+U[:,2]**2)
+        magV=np.sqrt(V[:,0]**2+V[:,1]**2+V[:,2]**2)
+        costheta= np.diag(np.dot(U,V.T))/(magU*magV)
+        mass=1.0/(2.0*((1.0/(massOamu))+((1.000000-costheta)/(massHamu))))
+        
+        dist=self.Wfn.molecule.function(x)
+        
+    
+
+
+
+    return mass
+
+
+
 if len(sys.argv)>1:
     print 'Usage: just use it, no arguments'
     end
@@ -49,6 +76,16 @@ plt.plot(bin_center,HistDR,color='green',linewidth=4,linestyle='-')
 plt.subplot(212)
 plt.plot(bin_center,HistZD,color='green',linewidth=4,linestyle='-')
 
+plt.figure(2)
+dtau=10.0
+dist=R_dr
+Wfn.setNodalSurface('SharedProton')
+Wfn.setIsotope('notDeuterated')
+mass=Wfn.molecule.calcReducedmass(coords)
+P_rec=np.exp(-2.0*dist*dist*mass/dtau)
+plt.scatter(R_dr,P_rec,color='blue')
+
+
 
 coords,dw=Wfn.loadCoords('AnnesH3O2/walkers_es_g-alld.xyz')
 print 'shape of coords', coords.shape
@@ -75,6 +112,15 @@ plt.subplot(211)
 plt.plot(bin_center,HistDR,color='green',linewidth=4,linestyle='--')
 plt.subplot(212)
 plt.plot(bin_center,HistZD,color='green',linewidth=4,linestyle='--')
+
+plt.figure(2)
+dtau=10.0
+dist=R_dr
+Wfn.setNodalSurface('SharedProton')
+Wfn.setIsotope('fullyDeuterated')
+mass=Wfn.molecule.calcReducedmass(coords)
+P_rec=np.exp(-2.0*dist*dist*mass/dtau)
+plt.scatter(R_dr,P_rec,color='green')
 
 
 
@@ -105,6 +151,18 @@ plt.subplot(212)
 plt.plot(bin_center,HistZD,color='blue',linewidth=4,linestyle='-')
 
 
+plt.figure(2)
+dtau=10.0
+dist=R_dr
+Wfn.setNodalSurface('Z-displacement')
+Wfn.setIsotope('notDeuterated')
+mass=Wfn.molecule.calcReducedmass(coords)
+P_rec=np.exp(-2.0*dist*dist*mass/dtau)
+plt.scatter(R_dr,P_rec,color='teal')
+
+
+
+
 coords,dw=Wfn.loadCoords('AnnesH3O2/walkers_ez-alld.xyz')
 print 'shape of coords', coords.shape
 coords=coords/ang2bohr
@@ -129,7 +187,14 @@ plt.plot(bin_center,HistDR,color='blue',linewidth=4,linestyle='--')
 plt.subplot(212)
 plt.plot(bin_center,HistZD,color='blue',linewidth=4,linestyle='--')
 
-
+plt.figure(2)
+dtau=10.0
+dist=R_dr
+Wfn.setNodalSurface('Z-displacement')
+Wfn.setIsotope('fullyDeuterated')
+mass=Wfn.molecule.calcReducedmass(coords)
+P_rec=np.exp(-2.0*dist*dist*mass/dtau)
+plt.scatter(R_dr,P_rec,color='blue')
 
 
 
@@ -263,8 +328,5 @@ plt.xlim(0.000, 0.15)
 plt.ylim(0.0000,.6)
 plt.plot(bin_center,HistZD,color='black',linewidth=4,linestyle='--')
 
-
-
-plt.xlim(0.000, 0.25)
 
 plt.show()

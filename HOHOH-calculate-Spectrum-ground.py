@@ -7,7 +7,7 @@ import sys
 import os
 import glob
 import usefulFunctions as use
-
+import CalculateSpectrum
 
 au2wn=219474.63
 nBins=51
@@ -20,8 +20,8 @@ if len(sys.argv)<4:
 starttime=time.time()
 
 stateGround='stateGround'
-state='stateAsymSt'
-DWstate='DWAsymSt'
+state='stateGround'
+DWstate='DWGround'
 molecule='H3O2'
 dTau=10
 
@@ -29,7 +29,7 @@ N_size=int(sys.argv[1])
 nReps=int(sys.argv[2])
 descendantSteps=int(sys.argv[3])
 nRepsDW=int(sys.argv[4])
-
+nStart=int(sys.argv[5])
 #figure out which nrep number we're at in the directory of interest
 fileParameterName=molecule+'-'+state+'-'+DWstate+'-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)
 path='data'+molecule+'/'+state+'/'+DWstate+'/'
@@ -49,7 +49,7 @@ Wfn=dmc.wavefunction('HOHOH', N_size)
 Wfn.setNodalSurface('OHStretchAnti','Both')
 
 #for each iwfn in nReps, 
-for iwfn in range(nReps):
+for iwfn in range(nStart,nReps):
     print '   REPETITION NUMBER: ', iwfn
     groundPath='data'+molecule+'/stateGround/DWGround/'
 
@@ -64,17 +64,34 @@ for iwfn in range(nReps):
 
     symEckRotCoords=Wfn.molecule.eckartRotate(symCoords)
 
-    GfileName='TheGMatrix-symmetrized'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
-    
-    #GfileName='TheGMatrix.gmat'
+    fileOut=open('symEckRotCoords.xyz', 'w')
+    Wfn.molecule.printCoordsToFile(symEckRotCoords,fileOut)
+    fileOut.close()
+    #print 'two symmeterized walkers!'
+    #i=26
+    #print symEckRotCoords[i],'\n',symEckRotCoords[i+nwalkers]
     
     print 'INTERNAL COORDINATES :-O'
     internals=Wfn.molecule.SymInternals(symEckRotCoords)
+    #print internals[i],'\n',internals[i+nwalkers]
+    print np.average(internals,weights=symDW,axis=0)
 
 
-    print zip(Wfn.molecule.internalName,np.average(internals,weights=symDW,axis=0)*Wfn.molecule.internalConversion)
+
+
+    #GfileName='TheGMatrix-symmetrized'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
+    GfileName='TheGMatrix-symmetrized-all-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
     
-    Wfn.LoadG(groundPath+GfileName,symEckRotCoords,symDW)
+    #GfileName='TheGMatrix.gmat'
+
+    
+    HOASpectrum=CalculateSpectrum.HarmonicApproxSpectrum(Wfn,symEckRotCoords,symDW,path=path)
+    #HOASpectrum.calculateG(symEckRotCoords,symDW)
+    HOASpectrum.calculateSpectrum(symEckRotCoords,symDW,path+GfileName)
+    
+    #print zip(Wfn.molecule.internalName,np.average(internals,weights=symDW,axis=0)*Wfn.molecule.internalConversion)
+    
+#    Wfn.LoadG(groundPath+GfileName,symEckRotCoords,symDW)
 
 
-    Wfn.calculateSpectrum(symEckRotCoords,symDW)
+
