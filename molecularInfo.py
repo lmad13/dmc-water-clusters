@@ -159,7 +159,7 @@ class molecule:
         aHOO1=self.bondAngle(x,atom1=2, atom2=1, atom3=3)
         aHOO2=self.bondAngle(x,atom1=4, atom2=3, atom3=1)
         tHOOH,tRange=self.calcTorsion(x)
-        HdispX,HdispY, HdispZ = self.calcSharedProtonDisplacement(x)
+        HdispX,HdispY, HdispZ = self.calcCartesianSharedProtonDisplacement(x)
         
         #rn=self.calcRn(x)
         #NOW SYMETRIZE         
@@ -715,7 +715,7 @@ class molecule:
 
 
 
-    def calcSharedProtonDisplacement(self,x):
+    def calcCartesianSharedProtonDisplacement(self,x):
         # define midpoint
         OOMP=(x[:,1]+x[:,3])/2.0
         # define vector between O1 and MP

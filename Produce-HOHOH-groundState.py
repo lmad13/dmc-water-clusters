@@ -98,7 +98,8 @@ for iwfn in range(nReps):
         descendantWeights=descendantWeights+descendantsTemp
 
     descendantWeights=descendantWeights/nRepsDW
-    print ''
+
+
     Wfn.exportCoords(finalCoords,path+'Wfn-'+str(iwfn)+'-'+fileParameterName+'.xyz',descendantWeights)
     Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-2.5,2.5),density=True,weights=descendantWeights)
     bin_center=(bin_edges[:-1]+bin_edges[1:])/2.0
@@ -136,7 +137,7 @@ outputFile.write('the average of average V_ref is'+str(np.average(np.array(avera
 outputFile.write('standard deviation'+ str(np.std(np.array(averaged_vref)))+ ' cm-1'+'\n')
 outputFile.write('uncertainity is'+ str((np.max(averaged_vref)-np.min(averaged_vref))/(2.0*np.sqrt(nReps)))+'\n')
 
-outputFile.close()
+
 #####print '--------   Rn   --------' 
 #####print '   Average:',np.average(GatherExpectationRn),'\n   Standard Deviation:',np.std(GatherExpectationRn)
 #####print '   Uncertainity:',(np.max(GatherExpectationRn)-np.min(GatherExpectationRn))/(2.0*np.sqrt(nReps))
@@ -185,6 +186,6 @@ outputFile.write('that took '+str(endtime-starttime)+' seconds and '+str((endtim
 
 
 print 'that took', endtime-starttime, 'seconds and ', (endtime-starttime)/60.0 , 'minutes'
-
+outputFile.close()
 
 print 'done!'
