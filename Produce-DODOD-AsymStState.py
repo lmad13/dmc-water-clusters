@@ -1,5 +1,7 @@
 #!/usr/bin/python
 import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import DMCClusters as dmc
 import time
@@ -16,12 +18,13 @@ if len(sys.argv)<4:
     end
 
 
-state='stateGround'
-DWstate='DWGround'
-molecule='H3O2'
+starttime=time.time()
+
+stateGround='stateGround'
+state='stateAsymSt'
+DWstate='DWAsymSt'
+molecule='D3O2'
 dTau=10
-
-
 
 N_size=int(sys.argv[1])
 nReps=int(sys.argv[2])
@@ -37,47 +40,48 @@ print 'the files that already exist are:', preExistingFiles
 
 outputFile=open(path+fileParameterName+'-logFile.data','w')
 outputFile.write('the files that already exist are: '+str(preExistingFiles)+'\n')
-print '   *** printing to ***    ',path+fileParameterName+'-logFile.data'
+
 equilibrationSteps=500
 propagationSteps=500
-
-starttime=time.time()
-
 averaged_vref=[]
 list_of_pop_list=[]
 
 Wfn=dmc.wavefunction('HOHOH', N_size)
-
-
-#Equilibration
-initialx=Wfn.x*1.1
-
-print 'equilibrating for ', equilibrationSteps, 'steps (',equilibrationSteps*Wfn.dtau,' au)'
-outputFile.write('equilibrating for '+str(equilibrationSteps)+' steps ('+str(equilibrationSteps*Wfn.dtau)+' au) \n')
-
-v_ref_equilibration,pop_list_equilibration,equilibratedCoordinates,descendants=Wfn.propagate(initialx,equilibrationSteps,printCensus=True,initialPop=N_size)
-inputx=equilibratedCoordinates
-outputFile.write('From equilibration, the average energy is '+str(np.average(v_ref_equilibration[equilibrationSteps/2:])*au2wn)+' cm-1 \n')
-#print use.printArray(np.array(zip(np.arange(equilibrationSteps+1),v_ref_equilibration,pop_list_equilibration)))
-plt.figure(1)
-plt.subplot(311)
-
-plt.plot(np.arange(equilibrationSteps+1),np.array(v_ref_equilibration)*au2wn)
-plt.subplot(312)
-plt.plot(np.arange(equilibrationSteps+1),pop_list_equilibration)
-np.savetxt(path+'equilibration-vref-pop-'+fileParameterName+'-array.data',np.array(zip(np.arange(equilibrationSteps+1),v_ref_equilibration,pop_list_equilibration)))
-outputFile.write('save energy to '+path+'equilibration-vref-pop-'+fileParameterName+'-array.data'+'\n')
-
-#
-
+Wfn.setNodalSurface('OHStretchAnti','Both')
+Wfn.setIsotope('fullyDeuterated')
+#for each iwfn in nReps, 
 for iwfn in range(nReps):
     print '   REPETITION NUMBER: ', iwfn
-    v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
+    groundPath='data'+molecule+'/stateGround/DWGround/'
+
+    #load in the ground state
+    groundStateWfnName='Wfn-'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.xyz'
+    GroundCoords,groundDW=Wfn.loadCoords(groundPath+groundStateWfnName)
+
+
+    #propagate for DW  G2E=GroundToExcited
+    descendantWeightsG2E=np.zeros((GroundCoords.shape[0]))
+    for ides in range(nRepsDW):
+        print 'DW Rep Number',ides,
+        v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(GroundCoords,descendantSteps,initialPop=N_size,printCensus=False)
+        descendantWeightsG2E=descendantWeightsG2E+descendantsTemp
+
+    print ''
+    descendantWeightsG2E=descendantWeightsG2E/nRepsDW
+
+    pathGroundToExc='data'+molecule+'/'+stateGround+'/'+DWstate+'/'
+    fileNameGroundToExc=molecule+'-'+stateGround+DWstate+'-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)
+    Wfn.exportCoords(GroundCoords,pathGroundToExc+'Wfn-'+str(iwfn)+'-'+fileNameGroundToExc+'.xyz',descendantWeightsG2E)
+    
+    #propagate for excited state
+    
+    v_ref_list,pop_list,finalCoords,d=Wfn.propagate(GroundCoords,propagationSteps,printCensus=True,initialPop=N_size)
+    
     np.savetxt(path+'vref-pop-'+str(iwfn)+'-'+fileParameterName+'-array.data',np.array(zip(np.arange(propagationSteps+1),v_ref_list,pop_list)))
+
     averaged_vref.append(np.average(np.array(v_ref_list[propagationSteps/2:])*au2wn))
     print 'average from this simulation',averaged_vref[-1]
     outputFile.write('average from simulation '+str(iwfn)+' is '+str(averaged_vref[-1])+'\n')
-
     list_of_pop_list.append(pop_list)
     plt.figure(1)
     plt.subplot(311)
@@ -87,18 +91,19 @@ for iwfn in range(nReps):
     plt.subplot(312)
     plt.plot(np.arange(iwfn*propagationSteps-1,(iwfn+1)*propagationSteps)+equilibrationSteps,np.array(pop_list))
 
-    Rn=Wfn.molecule.calcSharedProtonDisplacement(finalCoords)
+    Rn=Wfn.molecule.calcRn(finalCoords)
     Dipole=Wfn.molecule.calcDipole(finalCoords)
 
     descendantWeights=np.zeros((finalCoords.shape[0]))
 
+    #propagate for DW
     for ides in range(nRepsDW):
         print 'DW Rep Number',ides,
         v_ref_DW_list,pop_DW_list,DWFinalCoords,descendantsTemp=Wfn.propagate(finalCoords,descendantSteps,initialPop=N_size,printCensus=False)
         descendantWeights=descendantWeights+descendantsTemp
 
+    print ''
     descendantWeights=descendantWeights/nRepsDW
-
 
     Wfn.exportCoords(finalCoords,path+'Wfn-'+str(iwfn)+'-'+fileParameterName+'.xyz',descendantWeights)
     Psi2Hist,bin_edges=np.histogram(Rn, bins=nBins, range=(-2.5,2.5),density=True,weights=descendantWeights)
@@ -118,10 +123,6 @@ for iwfn in range(nReps):
     Psi2Dip2Hist,bin_edges_dip2=np.histogram(np.linalg.norm(Dipole,axis=1)**2, bins=nBins, range=(0,8.0),density=True,weights=descendantWeights)
     bin_center_dip2=(bin_edges_dip2[:-1]+bin_edges_dip2[1:])/2.0
 
-
-
-    inputx=finalCoords
-
     
 
 endtime=time.time()
@@ -132,12 +133,10 @@ print 'averaged v_ref:',averaged_vref
 print 'the average of average V_ref is',np.average(np.array(averaged_vref)), ' cm-1',
 print 'standard deviation', np.std(np.array(averaged_vref)), ' cm-1'
 print 'uncertainity is', (np.max(averaged_vref)-np.min(averaged_vref))/(2.0*np.sqrt(nReps))
-outputFile.write('averaged v_ref:'+str(averaged_vref)+'\n')
-outputFile.write('the average of average V_ref is'+str(np.average(np.array(averaged_vref)))+ ' cm-1'+'\n')
-outputFile.write('standard deviation'+ str(np.std(np.array(averaged_vref)))+ ' cm-1'+'\n')
-outputFile.write('uncertainity is'+ str((np.max(averaged_vref)-np.min(averaged_vref))/(2.0*np.sqrt(nReps)))+'\n')
-
-
+outputFile.write('averaged v_ref: '+str(averaged_vref)+'\n')
+outputFile.write('the average of average V_ref is '+str(np.average(np.array(averaged_vref)))+ ' cm-1'+'\n')
+outputFile.write('standard deviation ' + str(np.std(np.array(averaged_vref)))+ ' cm-1'+'\n')
+outputFile.write('uncertainity is '+ str((np.max(averaged_vref)-np.min(averaged_vref))/(2.0*np.sqrt(nReps)))+'\n')
 #####print '--------   Rn   --------' 
 #####print '   Average:',np.average(GatherExpectationRn),'\n   Standard Deviation:',np.std(GatherExpectationRn)
 #####print '   Uncertainity:',(np.max(GatherExpectationRn)-np.min(GatherExpectationRn))/(2.0*np.sqrt(nReps))
@@ -182,10 +181,7 @@ outputFile.write('uncertainity is'+ str((np.max(averaged_vref)-np.min(averaged_v
 #####fileOutData.write(str((np.max(GatherExpectationMagMu2)-np.min(GatherExpectationMagMu2))/(2.0*np.sqrt(nReps)))+'\n')
 #####fileOutData.close()
 #####
-outputFile.write('that took '+str(endtime-starttime)+' seconds and '+str((endtime-starttime)/60.0)+' minutes \n')
-
-
 print 'that took', endtime-starttime, 'seconds and ', (endtime-starttime)/60.0 , 'minutes'
-outputFile.close()
+outputFile.write('that took '+str(endtime-starttime)+' seconds and '+str((endtime-starttime)/60.0)+' minutes \n')
 
 print 'done!'

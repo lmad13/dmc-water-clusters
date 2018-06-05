@@ -170,7 +170,6 @@ class molecule (object):
         else:
             print 'woefully unprepared to handle the calculation of the SymInternals for ', self.molecule
             crash
-            
 
     def SymInternalsH3O2minus(self,x):
         #print 'calculating the internals...ver 1...'
@@ -184,13 +183,16 @@ class molecule (object):
         aHOO1=self.bondAngle(x,atom1=2, atom2=1, atom3=3)
         aHOO2=self.bondAngle(x,atom1=4, atom2=3, atom3=1)
         tHOOH,tRange=self.calcTorsion(x)
-        HdispX,HdispY, HdispZ = self.calcSharedProtonCartDisplacement(x)
+        HdispX,HdispY, HdispZ = self.calcCartesianSharedProtonDisplacement(x)
         
         #rn=self.calcRn(x)
         #NOW SYMETRIZE         
 
         rOH_s=np.sqrt(0.5)*(rOH1+rOH2) #symetric                                                    
         rOH_a=np.sqrt(0.5)*(rOH1-rOH2) #asym stretch                                                
+        #rOH_ai=0.5*(rOH1-rOH2+rOH3-rOH4) # in phase anti sym                                       
+        #rOH_ao=0.5*(rOH1-rOH2-rOH3+rOH4) #out of phase anti sym                                    
+
         aHOO_s=np.sqrt(0.5)*(aHOO1+aHOO2) #symetric                                                 
         aHOO_a=np.sqrt(0.5)*(aHOO1-aHOO2) #asymetric                                                
 
@@ -665,7 +667,7 @@ class molecule (object):
 
 
 
-    def calcSharedProtonCartDisplacement(self,x):
+    def calcCartesianSharedProtonDisplacement(self,x):
         # define midpoint
         OOMP=(x[:,1]+x[:,3])/2.0
         # define vector between O1 and MP
