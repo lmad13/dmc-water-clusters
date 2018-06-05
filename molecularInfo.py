@@ -668,6 +668,25 @@ class molecule (object):
 
 
     def calcCartesianSharedProtonDisplacement(self,x):
+        #returns the projection of the shared proton on a molecular frame of reference.
+        #Z is along the OO vector
+        #Y is perpendicular to Z and X' vector (X'=the vector the bisects the OH-OH dihedral).
+        #X is on the Z and X' plane and is perpendicular to the Y and Z axes.
+        
+        #  H2                      H4      X
+        #   \                     /        |
+        #    \          H0      /          |
+        #     O1------MP-----O3            -----> Z
+        #
+        # Sort of a Neuman Projection:
+        #
+        #    Y      H2    X'
+        #      \    |    /
+        #        \  |  /
+        #           O1 -----H4
+        #
+        #
+
         # define midpoint
         OOMP=(x[:,1]+x[:,3])/2.0
         # define vector between O1 and MP
