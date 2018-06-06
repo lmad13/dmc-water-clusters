@@ -122,15 +122,17 @@ class HarmonicApproxSpectrum(object):
 
 
     def calculateSpectrum(self, coords,dw,GfileName):
-        print 'I hope I am calculating the spectrum from ECKART ROTATED coordinates!'
-        # eckRotcoords=self.molecule.eckartRotate(coords)
+        #Equations are referenced from McCoy, Diken, and Johnson. JPC A 2009,113,7346-7352
+        print 'I better be calculating the spectrum from ECKART ROTATED coordinates!'
+
+        #First, What is the G Matrix for this set of walkers based on the SymInternals coordinates
         self.G=self.LoadG(GfileName)
         
 
-        #internals=self.molecule.SymInternals(coords)
+        # Now determine the intrinsic linear combinations of SymInternal coordinates of the Wfn based on the second moments
         moments,secondMoments=self.calculateSecondMoments(coords,dw)
-
         q,q2,q4=self.calculateQCoordinates(moments,secondMoments,dw)
+
         q4ave=np.average(q4,axis=0,weights=dw)
         q2ave=np.average(q2,axis=0,weights=dw)
         qave =np.average(q,axis=0,weights=dw)
@@ -141,73 +143,120 @@ class HarmonicApproxSpectrum(object):
         if verbose: print 'q^4 \n',q4ave
         if verbose: print '/\/\/\/\/\/\/\/\/\/\ '
 
+        #Now calculate the Potential energy
         potentialEnergy=self.calculatePotentialEnergy(coords,dw)
-
-
+        # V_0=<0|V|0>
         V_0=np.average(potentialEnergy[:,None],axis=0,weights=dw)
+
+        # Vq= <1_q|V|0> bra:state with one quanta in mode q, ket: ground state
         Vq=np.average(potentialEnergy[:,None]*q2,axis=0,weights=dw)
+
+        #Vq2d=<q^2Vq^2> (<> is an average of the descendant weights)
         Vq2d=np.zeros((self.nVibs,self.nVibs))
+
+        #q2ave2d=<q^2 q^2> (<> is an average of the descendant weights)  
         q2ave2d=np.zeros((self.nVibs,self.nVibs))
+
         for i in range(coords.shape[0]):
             Vq2d=Vq2d+np.outer(q2[i],potentialEnergy[i]*q2[i])*dw[i]
             q2ave2d=q2ave2d+np.outer(q2[i],q2[i])*dw[i]
         Vq2d=Vq2d/np.sum(dw)
+        q2ave2d=q2ave2d/np.sum(dw)        
         
-    
-        q2ave2d=q2ave2d/np.sum(dw)
-        
-        if verbose: print 'average v_0',V_0*au2wn
-        if verbose: print 'Vq', Vq*au2wn
+        #Now calculate the kinetic energy
+        print 'ZPE: average v_0',V_0*au2wn
+        print 'Vq', Vq*au2wn
 
-        #What's the difference with alpha??
-        alpha=q2ave/(q4ave-q2ave**2)
+        alpha=q2ave/(q4ave-q2ave**2) # Equation #11 
+        alphaPrime=0.5/q2ave   #Equation in text after #8
+        #        print 'how similar are these?', zip(alpha,alphaPrime) Still a mystery to my why there were 2 dfns of alpha
 
 
         #kineticEnergy= hbar**2 nquanta alpha/(2 mass)
-        Tq=1.0**2*1.0*alpha/(2.0*1.0)
-
-        Tq2d=np.zeros((self.nVibs,self.nVibs))
+        Tq=1.0**2*1.0*alpha/(2.0*1.0) #Equation #10
         
-        Eq2d=np.zeros((self.nVibs,self.nVibs))
-
+        Tq2d=np.zeros((self.nVibs,self.nVibs)) #Tij=Ti+Tj
+        #Finish calculate the potential and kinetic energy for the combination and overtone bands 
+        #put Equation 8 into equation 4, algebra...
         for ivibmode in range(self.nVibs):
             for jvibmode in range(ivibmode):
                 Vq2d[ivibmode,jvibmode]=Vq2d[ivibmode,jvibmode]/q2ave2d[ivibmode,jvibmode]
                 Vq2d[jvibmode,ivibmode]=Vq2d[jvibmode,ivibmode]/q2ave2d[jvibmode,ivibmode]
                 Tq2d[ivibmode,jvibmode]=Tq[ivibmode]+Tq[jvibmode]
                 Tq2d[jvibmode,ivibmode]=Tq2d[ivibmode,jvibmode]
-                #Eq2d[ivibmode,jvibmode]=Vq2d[ivibmode,jvibmode]-V_0+Tq2d[ivibmode,jvibmode]
-                #Eq2d[jvibmode,ivibmode]=Vq2d[jvibmode,ivibmode]-V_0+Tq2d[jvibmode,ivibmode]
             Vq2d[ivibmode,ivibmode]=Vq2d[ivibmode,ivibmode]*4.0*alpha[ivibmode]**2-Vq[ivibmode]*4.0*alpha[ivibmode]+V_0
             Vq2d[ivibmode,ivibmode]=Vq2d[ivibmode,ivibmode]/(4.0*alpha[ivibmode]**2*q2ave2d[ivibmode,ivibmode]-4.0*alpha[ivibmode]*q2ave[ivibmode]+1.0)
             Tq2d[ivibmode,ivibmode]=Tq[ivibmode]*2.0
             
+        #Energy is V+T, don't forget to subtract off the ZPE
+            #Eq2d=np.zeros((self.nVibs,self.nVibs))
         Eq2d=(Vq2d+Tq2d)-V_0
         Eq=(Vq/q2ave+Tq)-V_0
-        print 'm alpha           Vq            Vq/q2ave      Tq            Eq'
+        
+        #Lastly, the dipole moments to calculate the intensities!
+        dipoleMoments=self.wfn.molecule.dipole(coords)
+        averageDipoleMoment_0=np.average(dipoleMoments,axis=0,weights=dw)
 
+        #aMu_i=<1_i|dipoleMoment|0>=Sum_n^walkers(Dipole_n*q_i*dw_n)/Sum(dw) #Equation 4 for \psi_n=\psi_1
+        aMu=np.zeros((3,self.nVibs))  
+        #aMu2d_{i,j}=<1_i,1_j|dipoleMoment|0>=Sum_n^walkers(Dipole_n*q_i*q_j*dw_n)/Sum(dw) #Equation 4 for \psi_n=\psi_{1,1}
+        aMu2d=np.zeros((3,self.nVibs,self.nVibs))
+
+        for P,R,d in zip(dipoleMoments,q,dw):
+            aMu=aMu+np.outer(P,-R)*d  #off by a sign change for some reason so I changed it to be -R instead of R...I guess P could be backwards? 
+            temp=np.outer(R,R)
+            temp=temp.reshape((self.nVibs*self.nVibs,1))
+            aMu2d=aMu2d+(np.outer(P,temp).reshape((3,self.nVibs,self.nVibs)))*d
+
+        aMu=aMu/np.sum(dw)
+        aMu2d=aMu2d/np.sum(dw)
+
+        np.savetxt("WtvsMu-qs-a.data",zip(dw,np.sum(dipoleMoments**2,axis=1),q[:,5],q[:,6]))
+
+        aMu=aMu.transpose()
+        aMu2d=aMu2d.transpose()  #switches around the axes
+
+        magAvgMu=np.zeros((self.nVibs))
+        #Finding |<1_i|dipoleMoment|0>|^2 
+        for m,mode in enumerate(aMu):
+            magAvgMu[m]=magAvgMu[m]+(mode[0]**2+mode[1]**2+mode[2]**2)/(q2ave[m])
+        ivibmode=0
+        
+        magMu2d=np.zeros((self.nVibs,self.nVibs))
+        #Finding |<1_i,1_j|dipoleMoment|0>|^2
+        for ivibmode in range(self.nVibs):
+            aMu2d[ivibmode,ivibmode]=2*alpha[ivibmode]*aMu2d[ivibmode,ivibmode]-averageDipoleMoment_0 
+            magMu2d[ivibmode,ivibmode]=np.sum(aMu2d[ivibmode,ivibmode]**2)
+            magMu2d[ivibmode,ivibmode]=magMu2d[ivibmode,ivibmode]/(q2ave2d[ivibmode,ivibmode]*4.0*alpha[ivibmode]**2-4.0*alpha[ivibmode]*q2ave[ivibmode]+1.0)
+            for jvibmode in range(ivibmode):
+                magMu2d[ivibmode,jvibmode]=np.sum(aMu2d[ivibmode,jvibmode]**2)
+                magMu2d[ivibmode,jvibmode]=magMu2d[ivibmode,jvibmode]/q2ave2d[ivibmode,jvibmode]
+                magMu2d[jvibmode,ivibmode]=magMu2d[ivibmode,jvibmode]
+
+        print "m alpha   alpha'=0.5/<q2>        Vq            Vq/q2ave      Tq            Eq          |<1|dipole|0>|"
         for i in range(9):
-            print i, alpha[i], au2wn*Vq[i], au2wn*Vq[i], Vq[i]/q2ave[i]*au2wn, Eq[i]*au2wn
+            print i, alpha[i], alphaPrime[i],au2wn*Vq[i], au2wn*Vq[i], Vq[i]/q2ave[i]*au2wn, Eq[i]*au2wn, magAvgMu[i]
             
         if verbose: print 'energies!', zip(Vq2d[0]*au2wn,Tq2d[0]*au2wn,Eq2d[0]*au2wn)
-        
+
         print 'Spectrum Info'
         fundamentalFileName=self.path+'fundamentals.data'
         comboFileName=self.path+'combinationOverrtoneBands.data'
         fundamentalFile=open(fundamentalFileName,'w')
         comboFile=open(comboFileName,'w')
 
-        for i in range(9):
-            print Eq[i]*au2wn, 'mode ',i 
-            fundamentalFile.write(str( Eq[i]*au2wn)+"       "+str(i)+"\n")
-        for i in range(9):
+        for i in range(self.nVibs):
+            print Eq[i]*au2wn, magAvgMu[i], 'mode ',i 
+            fundamentalFile.write(str( Eq[i]*au2wn)+"   "+str(magAvgMu[i])+"       "+str(i)+"\n")
+        for i in range(self.nVibs):
             for j in range(i):
-                print Eq2d[i,j]*au2wn , 'combination bands' , i,j
-                comboFile.write(str( Eq2d[i,j]*au2wn)+"       "+str(i)+" "+str(j)+"\n")
+                print Eq2d[i,j]*au2wn , magMu2d[i,j],'combination bands' , i,j
+                comboFile.write(str( Eq2d[i,j]*au2wn)+"   "+str(magMu2d[i,j])+"       "+str(i)+" "+str(j)+"\n")
         
         fundamentalFile.close()
         comboFile.close
-        return Eq*au2wn, Eq2d*au2wn
+        return Eq*au2wn,magAvgMu, Eq2d*au2wn,magMu2d
+
 
     def calculatePotentialEnergy(self,coords,dw):
         equilibriumEnergy=self.wfn.molecule.getEquilibriumEnergy()
@@ -233,7 +282,7 @@ class HarmonicApproxSpectrum(object):
         TransformationMatrix=np.dot(vects.transpose(),GHalfInv)
         #print 'RESULTS'
         Tnorm=1.0*TransformationMatrix # NEED TO DEEP COPY :-0                                                                    
-        alpha=1.0*eigval #AS in alpha_j in equation 5 of the JPC A 2011 h5o2 dimer paper                                          
+        alpha=1.0*eigval #AS in alpha_j in equation 5 of the JPC A 2011 h5o2 dier paper                                          
         #save the transformation matrix for future reference                                                                      
         TMatFileName=self.path+'TransformationMatrix.data'
         np.savetxt(TMatFileName,TransformationMatrix)

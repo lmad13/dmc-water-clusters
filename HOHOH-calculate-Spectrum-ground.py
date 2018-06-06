@@ -96,23 +96,32 @@ for iwfn in range(nStart,nReps):
     
     HOASpectrum=CalculateSpectrum.HarmonicApproxSpectrum(Wfn,symEckRotCoords,symDW,path=path)
     #HOASpectrum.calculateG(symEckRotCoords,symDW)
-    fundamentals,combinationBands=HOASpectrum.calculateSpectrum(symEckRotCoords,symDW,path+GfileName)
-    fundamentalFile=open(path+'Fundamentals-from-'+str(iwfn)+'.data','w')
-    for i,v in enumerate(fundamentals):
-        fundamentalFile.write(str(i)+"       "+str(v)+"\n")
+    fundamentalEnergies,fundamentalIntensities, combinationBandEnergies,combinationBandIntensities=HOASpectrum.calculateSpectrum(symEckRotCoords,symDW,path+GfileName)
+    fundamentalFile=open(path+'Fundamentals-'+str(iwfn)+'-from-'+fileParameterName+'.data','w')
+    for i,(v,intensity) in enumerate(zip(fundamentalEnergies,fundamentalIntensities)):
+        fundamentalFile.write(str(i)+"       "+str(v)+"   "+str(intensity)+"\n")
     fundamentalFile.close()
+    combinationFile=open(path+'Combinations-'+str(iwfn)+'-from-'+fileParameterName+'.data','w')
+    for i in range(combinationBandEnergies.shape[0]):
+        for j in range(i):
+            combinationFile.write(str(i)+"  "+str(j)+"       "+str(combinationBandEnergies[i,j])+"    "+str(combinationBandIntensities[i,j])+"\n")
+    combinationFile.close()
 
 #gatheredSymEckRotCoords=np.array(gatheredSymEckRotCoords).reshape(nWalkersTotal,Wfn.nAtoms,3)
 #gatheredSymDW=np.array(gatheredSymDW).reshape(nWalkersTotal)
 HOASpectrum=CalculateSpectrum.HarmonicApproxSpectrum(Wfn,gatheredSymEckRotCoords,gatheredSymDW,path=path)
 #HOASpectrum.calculateG(gatheredSymEckRotCoords,gatheredSymDW)
 GfileName='TheGMatrix-symmetrized-all-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
-fundamentals,combinationBands=HOASpectrum.calculateSpectrum(gatheredSymEckRotCoords,gatheredSymDW,path+GfileName)
-fundamentalFile=open(path+'Fundamentals-from-Wfns-'+str(nStart)+'-to-'+str(nReps)+'.data','w')
-for i,v in enumerate(fundamentals):
-    fundamentalFile.write(str(i)+"       "+str(v)+"\n")
+fundamentalEnergies,fundamentalIntensities, combinationBandEnergies,combinationBandIntensities=HOASpectrum.calculateSpectrum(gatheredSymEckRotCoords,gatheredSymDW,path+GfileName)
+fundamentalFile=open(path+'Fundamentals-from-Wfns-'+fileParameterName+str(nStart)+'-to-'+str(nReps)+'.data','w')
+for i,(v,intensity) in enumerate(zip(fundamentalEnergies,fundamentalIntensities)):
+    fundamentalFile.write(str(i)+"       "+str(v)+"   "+str(intensity)+"\n")
 fundamentalFile.close()
-
+combinationFile=open(path+'Combinations-from-Wfns-'+fileParameterName+str(nStart)+'-to-'+str(nReps)+'.data','w')
+for i in range(combinationBandEnergies.shape[0]):
+    for j in range(i):
+        combinationFile.write(str(i)+"  "+str(j)+"       "+str(combinationBandEnergies[i,j])+"    "+str(combinationBandIntensities[i,j])+"\n")
+combinationFile.close()
 
     #print zip(Wfn.molecule.internalName,np.average(internals,weights=symDW,axis=0)*Wfn.molecule.internalConversion)
     
