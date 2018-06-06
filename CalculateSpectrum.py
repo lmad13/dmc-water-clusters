@@ -252,7 +252,9 @@ class HarmonicApproxSpectrum(object):
             for j in range(i):
                 print Eq2d[i,j]*au2wn , magMu2d[i,j],'combination bands' , i,j
                 comboFile.write(str( Eq2d[i,j]*au2wn)+"   "+str(magMu2d[i,j])+"       "+str(i)+" "+str(j)+"\n")
-        
+        for i in range(self.nVibs):
+            print Eq2d[i,i]*au2wn , magMu2d[i,i],'overtone bands' , i,i
+            comboFile.write(str( Eq2d[i,i]*au2wn)+"   "+str(magMu2d[i,i])+"       "+str(i)+" "+str(i)+"\n")
         fundamentalFile.close()
         comboFile.close
         return Eq*au2wn,magAvgMu, Eq2d*au2wn,magMu2d

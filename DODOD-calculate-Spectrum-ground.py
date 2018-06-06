@@ -24,7 +24,7 @@ starttime=time.time()
 stateGround='stateGround'
 state='stateGround'
 DWstate='DWGround'
-molecule='H3O2'
+molecule='D3O2'
 dTau=10
 
 N_size=int(sys.argv[1])
@@ -48,6 +48,7 @@ averaged_vref=[]
 list_of_pop_list=[]
 
 Wfn=dmc.wavefunction('HOHOH', N_size)
+Wfn.setIsotope('fullyDeuterated')
 Wfn.setNodalSurface('OHStretchAnti','Both')
 gatheredSymEckRotCoords=[]
 gatheredSymDW=[]
@@ -107,8 +108,8 @@ for iwfn in range(nStart,nReps):
     for i in range(combinationBandEnergies.shape[0]):
         for j in range(i):
             combinationFile.write(str(i)+"  "+str(j)+"       "+str(combinationBandEnergies[i,j])+"    "+str(combinationBandIntensities[i,j])+"\n")
-        for i in range(combinationBandEnergies.shape[0]):
-            combinationFile.write(str(i)+"  "+str(i)+"       "+str(combinationBandEnergies[i,i])+"    "+str(combinationBandIntensities[i,i])+"\n")
+    for i in range(combinationBandEnergies.shape[0]):
+        combinationFile.write(str(i)+"  "+str(i)+"       "+str(combinationBandEnergies[i,i])+"    "+str(combinationBandIntensities[i,i])+"\n")
     combinationFile.close()
 
 #gatheredSymEckRotCoords=np.array(gatheredSymEckRotCoords).reshape(nWalkersTotal,Wfn.nAtoms,3)
@@ -127,6 +128,7 @@ for i in range(combinationBandEnergies.shape[0]):
         combinationFile.write(str(i)+"  "+str(j)+"       "+str(combinationBandEnergies[i,j])+"    "+str(combinationBandIntensities[i,j])+"\n")
 for i in range(combinationBandEnergies.shape[0]):
     combinationFile.write(str(i)+"  "+str(i)+"       "+str(combinationBandEnergies[i,i])+"    "+str(combinationBandIntensities[i,i])+"\n")
+
 combinationFile.close()
 
     #print zip(Wfn.molecule.internalName,np.average(internals,weights=symDW,axis=0)*Wfn.molecule.internalConversion)
