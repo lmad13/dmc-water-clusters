@@ -53,6 +53,7 @@ class molecule (object):
         self.surfaceName=surfaceName
         if not self.surfaceName in surfaceOptions:
             print "THAT IS NOT A SURFACE! you have likely made a typo."
+            print 'select from: ', surfaceOptions
         self.side=side
         self.state=1
     def getPES(self):
@@ -91,14 +92,22 @@ class molecule (object):
                              [  2.671741580470489 ,     1.136107563104921     ,    1.382886181959795]])
 
 
-            coordsSADDLE=np.array([[ 0.000000000000000 , 0.000000000000000 , 0.000000000000000],
-                                   [ -2.303263755760085, 0.000000000000000 ,0.000000000000000 ],
-                                   [ -2.720583162407882, 1.129745554266140 ,-1.363735721982301   ],
-                                   [ 2.303263755760085, 0.000000000000000, 0.000000000000000     ],
-                                   [ 2.720583162407882, 1.129745554266140, 1.363735721982301]])
+            coordsSADDLE_sharedProton=np.array([[ 0.000000000000000 , 0.000000000000000 , 0.000000000000000],
+                                                [ -2.303263755760085, 0.000000000000000 ,0.000000000000000 ],
+                                                [ -2.720583162407882, 1.129745554266140 ,-1.363735721982301   ],
+                                                [ 2.303263755760085, 0.000000000000000, 0.000000000000000     ],
+                                                [ 2.720583162407882, 1.129745554266140, 1.363735721982301]])
             
 
-        return coordsSADDLE
+            coordsC2HSaddle=np.array([[    0.000000000000000,  0.000000000000000  , 0.000000000000000 ],
+                                      [   -2.304566686034061,  0.000000000000000  , 0.000000000000000 ],
+                                      [   -2.740400260927908, -1.766154718409233  , 0.000000000000000 ],
+                                      [    2.304566686034061,  0.000000000000000  , 0.000000000000000 ],
+                                      [    2.740400260927908,  1.766154718409233  , 0.000000000000000]])
+
+
+            #return coordsSADDLE_sharedProton
+        return coordsC2HSaddle
     
     def getEquilibriumEnergy(self):
         if self.name in DeprotonatedWaterDimer:
@@ -145,7 +154,9 @@ class molecule (object):
 
     def calcDipole(self,x,eckartRotated=False):
         if not eckartRotated:
+            print 'before calculating dipole, first we',
             eckRotx=self.eckartRotate(x)
+            
         else:
             eckRotx=x
         dipoleVectors=self.dipole(eckRotx)
@@ -210,17 +221,16 @@ class molecule (object):
         self.internalConversion=[bohr2ang,bohr2ang,bohr2ang,rad2deg,rad2deg,rad2deg,bohr2ang,bohr2ang,bohr2ang]
         return internal
 
-    def eckartRotate(self,pos,specialCond=False):
+    def eckartRotate(self,pos,specialCond=True):
+        print 'eckart rotate !'
         if len(pos.shape)<3:
             pos=np.array([pos])
         nMolecules=pos.shape[0]
         Fvec=np.zeros((3,3))
-        Fvec2=np.zeros((3,3))
+
         newCoord=np.zeros(pos.shape)
-        rHC=np.zeros((nMolecules,3))
-        rHCprime=np.zeros((nMolecules,3))
     
-        #Center of Mass     
+        #Center of Mass of walkers
         mass=self.get_mass()
         com=np.dot(mass,pos)/np.sum(mass)
         rs=0.000
@@ -228,34 +238,73 @@ class molecule (object):
 
         #First Translate:                
         ShiftedMolecules=pos-com[:,np.newaxis,:]
-
+        
         #Equation 3.1                    
         for moli,molecule in enumerate(ShiftedMolecules):
             Fvec=np.zeros((3,3))
             for atom,massa,eckatom in zip(molecule,mass,self.refPos):
                 Fvec=Fvec+massa*np.outer(eckatom,atom)
+
+            
             #F from eqn 3.4b             
             FF=np.dot(Fvec,Fvec.transpose())
             #Diagonalize FF              
             sortEigValsF,sortEigVecF=np.linalg.eigh(FF)
-            sortEigVecFT=-sortEigVecF.transpose()
-            if specialCond:
-                print 'special condition activated!'
-                print 'eigenvals \n',sortEigValsF
-                print 'vect \n',sortEigVecFT
-            if len(np.where(sortEigValsF<=0)[0])!=0:
-                #sortEigVecFT=np.abs(sortEigVecFT)                                                            
-                sortEigValsF=np.abs(sortEigValsF)
-                invRootDiagF=sortEigValsF
+            #figure out if the reference structure was planar by looking at the eigVals
+            isPlanar=np.any(sortEigValsF==0.00)
+
+            if isPlanar: #omg
+                #still in beta testing, did pass the internals match condition
+                dimension=np.where(Fvec==0.00)[0][0]  # the dimension that needs to be eliminated
+                if not dimension==2:
+                    print 'planar refernce structure must be on the xy plane! dimension is',dimension, 'not 2!', abort
+                mask1=np.zeros((3,3))
+                mask1[dimension,:]=-1
+                mask1[:,dimension]=-1
+                mask=(mask1>=0)
+
+                Fvec=Fvec[mask].reshape(2,2)
+
+                FF=np.dot(Fvec,Fvec.transpose())
+                TwoDEigValsF,TwoDEigVecF=np.linalg.eigh(FF)
+
+                TwoDEigVecFT=-TwoDEigVecF.transpose()
+
+                if len(np.where(TwoDEigValsF<=0)[0])!=0:
+                    TwoDEigValsF=np.abs(TwoDEigValsF)                
+                invRootDiagF=TwoDEigValsF*1.0
+                for e,element in enumerate(TwoDEigValsF):
+                    if element>0:
+                        invRootDiagF[e]=1.0/np.sqrt(element)
+                
+                invRootF=np.dot(invRootDiagF[np.newaxis,:]*-TwoDEigVecF,TwoDEigVecFT)
+                fTriadVectors=np.dot(Fvec.T,invRootF)
+                fprime=np.zeros((3,3))
+                
+                #mapping the two 2d triad vectors on to the fprime 
+                fprime[0,0:2]=fTriadVectors[0]
+                fprime[1,0:2]=fTriadVectors[1]
+                fprime[2]=np.cross(fprime[0],fprime[1])
+
+                eckVecs=fprime
+
+            else:
+                sortEigVecFT=-sortEigVecF.transpose()
+                if len(np.where(sortEigValsF<=0)[0])!=0:
+                    #sortEigVecFT=np.abs(sortEigVecFT)                                                            
+                    sortEigValsF=np.abs(sortEigValsF)
+                invRootDiagF=sortEigValsF*1.0
                 for e,element in enumerate(sortEigValsF):
                     if element>0:
                         invRootDiagF[e]=1.0/np.sqrt(element)
-            #Get the inverse sqrt of diagonalized(FF)                                                         
-            else:
-                invRootDiagF=1.0/np.sqrt(sortEigValsF)
-            # F^{-1/2}                    
-            invRootF=np.dot(invRootDiagF[np.newaxis,:]*-sortEigVecF,sortEigVecFT)
-            eckVecs=np.dot(Fvec.transpose(),invRootF)
+                        #Get the inverse sqrt of diagonalized(FF)                                                         
+                    else:
+                        invRootDiagF[e]=1.0/np.sqrt(-element)
+                        stop
+                            # F^{-1/2}                    
+            
+                invRootF=np.dot(invRootDiagF[np.newaxis,:]*-sortEigVecF,sortEigVecFT)
+                eckVecs=np.dot(Fvec.transpose(),invRootF)
             newCoord[moli]= np.dot(molecule,eckVecs)
 
             if len(np.where(np.isnan(newCoord[moli]))[0])!=0:
@@ -444,8 +493,6 @@ class molecule (object):
         return mass
     
     def sortProtons(self,x):
-        #Defunct!
-        defunct
         #This is a fun function!  It was written to correct for the isomerization of H3O2-.  The isomerization was a problem
         #Because the anti symmetric stretch (and actually all of the internal coordinates) were defined by the atom positions 
         #in the coordinate array.  
@@ -454,6 +501,8 @@ class molecule (object):
         #once each time step, but there are many places where we'd need the protons to be sorted appropriately and automatically
         #so we'll just have to work on speed ups in here rather than frugal calling of this method.
         #print 'sorting protons'
+
+
         if self.name not in DeprotonatedWaterDimer:
             print 'failed! wrong molecule!', end
         H0O1=self.bondlength(x,atom1=0 ,atom2=1)
@@ -541,11 +590,16 @@ class molecule (object):
             #fileout.close
         return listOfSwapped
 
-    def printCoordsToFile(self,x,fileout):
+    def printCoordsToFile(self,x,fileout,justSharedProton=False):
         au2ang=0.529177249
         fakeMoleculeNames=['H','O','Li','N','Be']
+        if justSharedProton:
+            fakeMoleculeNames=['H']
         for particle in x:
-            fileout.write(str(self.nAtoms)+' \n'+' \n')
+            if not justSharedProton:
+                fileout.write(str(self.nAtoms)+' \n'+' \n')
+            elif justSharedProton:
+                fileout.write(str(1)+' \n'+' \n')
             for atomName, atom in zip(fakeMoleculeNames,particle):
                 fileout.write(str(atomName)+'   '+str(au2ang*atom[0])+"   "+str(au2ang*atom[1])+"   "+str(au2ang*atom[2])+"\n")
             fileout.write("\n")
@@ -806,11 +860,17 @@ class molecule (object):
         #print 'torsion max, min, ave', np.max(torsion*rad2deg), np.min(torsion*rad2deg), np.average(torsion*rad2deg)
         return torsion,[0.0, np.pi]
 
-    def symmetrizeCoordinates(self,x,dw):
-        if self.name in DeprotonatedWaterDimer:
-            xSym=np.concatenate((x, #1     
-                                 self.exchange(x,[(1,3),(2,4)]))) #2
-            dwSym=np.concatenate((dw,dw))
+    def symmetrizeCoordinates(self,x,dw,typeOfSymmetry='regular'):
+        if self.name in DeprotonatedWaterDimer :
+            if typeOfSymmetry=='regular':
+            
+                xSym=np.concatenate((x, #1     
+                                     self.exchange(x,[(1,3),(2,4)]))) #2
+                dwSym=np.concatenate((dw,dw))
+            elif typeOfSymmetry==None:
+                xSym=x
+                dwSym=dw
+    
         return xSym,dwSym
 
     def exchange(self, x, listOfExchanges):

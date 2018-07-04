@@ -61,14 +61,30 @@ for iwfn in range(nStart,nReps):
     groundStateWfnName='Wfn-'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.xyz'
     GroundCoords,groundDW=Wfn.loadCoords(groundPath+groundStateWfnName)
 
+    fileOut=open('preEckRotCoords.xyz', 'w')
+    Wfn.molecule.printCoordsToFile(GroundCoords,fileOut)
+    fileOut.close()
+
+
     eckRotcoords=Wfn.molecule.eckartRotate(GroundCoords)
+
+    fileOut=open('eckRotCoords.xyz', 'w')
+    Wfn.molecule.printCoordsToFile(eckRotcoords,fileOut)
+    fileOut.close()
+    
+    
     nwalkers=GroundCoords.shape[0]
 
-    symCoords,symDW=Wfn.molecule.symmetrizeCoordinates(GroundCoords,groundDW)
+    symCoords,symDW=Wfn.molecule.symmetrizeCoordinates(GroundCoords,groundDW,typeOfSymmetry='regular')
 
     symEckRotCoords=Wfn.molecule.eckartRotate(symCoords)
     nWalkersTotal+=symCoords.shape[0]
 
+    #fileOut=open('symEckRotCoords.xyz', 'w')
+    #Wfn.molecule.printCoordsToFile(symEckRotCoords,fileOut)
+    #fileOut.close()
+    
+    
     if iwfn==nStart:
         gatheredSymEckRotCoords=symEckRotCoords
         gatheredSymDW=symDW
@@ -76,29 +92,17 @@ for iwfn in range(nStart,nReps):
         gatheredSymEckRotCoords=np.append(gatheredSymEckRotCoords,symEckRotCoords,axis=0)
         gatheredSymDW=np.append(gatheredSymDW,symDW,axis=0)
 
-    fileOut=open('symEckRotCoords.xyz', 'w')
-    Wfn.molecule.printCoordsToFile(symEckRotCoords,fileOut)
-    fileOut.close()
-    #print 'two symmeterized walkers!'
-    #i=26
-    #print symEckRotCoords[i],'\n',symEckRotCoords[i+nwalkers]
-    
     print 'INTERNAL COORDINATES :-O'
     internals=Wfn.molecule.SymInternals(symEckRotCoords)
-    #print internals[i],'\n',internals[i+nwalkers]
+
     print np.average(internals,weights=symDW,axis=0)
 
-
-
-
-    GfileName='TheGMatrix-symmetrized'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
-    #GfileName='TheGMatrix-symmetrized-all-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
-    
-    #GfileName='TheGMatrix.gmat'
+    GfileName='TheGMatrix-symmetrized-C2H-'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
     
     HOASpectrum=CalculateSpectrum.HarmonicApproxSpectrum(Wfn,symEckRotCoords,symDW,path=path)
-    #HOASpectrum.calculateG(symEckRotCoords,symDW)
+
     fundamentalEnergies,fundamentalIntensities, combinationBandEnergies,combinationBandIntensities=HOASpectrum.calculateSpectrum(symEckRotCoords,symDW,path+GfileName)
+
     fundamentalFile=open(path+'Fundamentals-'+str(iwfn)+'-from-'+fileParameterName+'.data','w')
     for i,(v,intensity) in enumerate(zip(fundamentalEnergies,fundamentalIntensities)):
         fundamentalFile.write(str(i)+"       "+str(v)+"   "+str(intensity)+"\n")
@@ -111,11 +115,10 @@ for iwfn in range(nStart,nReps):
             combinationFile.write(str(i)+"  "+str(i)+"       "+str(combinationBandEnergies[i,i])+"    "+str(combinationBandIntensities[i,i])+"\n")
     combinationFile.close()
 
-#gatheredSymEckRotCoords=np.array(gatheredSymEckRotCoords).reshape(nWalkersTotal,Wfn.nAtoms,3)
-#gatheredSymDW=np.array(gatheredSymDW).reshape(nWalkersTotal)
 HOASpectrum=CalculateSpectrum.HarmonicApproxSpectrum(Wfn,gatheredSymEckRotCoords,gatheredSymDW,path=path)
-#HOASpectrum.calculateG(gatheredSymEckRotCoords,gatheredSymDW)
-GfileName='TheGMatrix-symmetrized-all-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
+GfileName='TheGMatrix-symmetrized-C2H-all-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.gmat'
+
+
 fundamentalEnergies,fundamentalIntensities, combinationBandEnergies,combinationBandIntensities=HOASpectrum.calculateSpectrum(gatheredSymEckRotCoords,gatheredSymDW,path+GfileName)
 fundamentalFile=open(path+'Fundamentals-from-Wfns-'+fileParameterName+str(nStart)+'-to-'+str(nReps)+'.data','w')
 for i,(v,intensity) in enumerate(zip(fundamentalEnergies,fundamentalIntensities)):
@@ -132,6 +135,9 @@ combinationFile.close()
     #print zip(Wfn.molecule.internalName,np.average(internals,weights=symDW,axis=0)*Wfn.molecule.internalConversion)
     
 #    Wfn.LoadG(groundPath+GfileName,symEckRotCoords,symDW)
+
+
+
 
 
 

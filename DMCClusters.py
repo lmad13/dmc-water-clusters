@@ -105,6 +105,14 @@ class wavefunction (object):
                 descCoord[ln]=1.0
         coord=coord/au2ang
         return coord,descCoord
+        
+    
+    def calculateInverseParticipationRatio(self,descendantWeights):
+        sumDesc=np.sum(descendantWeights)
+        invPartSum=0
+        for d in descendantWeights:
+            invPartSum=invPartSum+(d/sumDesc)**2
+        return (1.0/invPartSum)/sumDesc
 
     def propagate(self,x,nSteps,setV_ref=False,ConstantV_ref=0,printCensus=True,initialPop=0,testing=False):
         #print 'ready to propagate for',nSteps, 'steps on x (shaped:',x.shape,') '

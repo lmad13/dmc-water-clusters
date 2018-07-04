@@ -1,5 +1,7 @@
 #!/usr/bin/python
 import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import DMCClusters as dmc
 import time
@@ -12,7 +14,7 @@ au2wn=219474.63
 nBins=51
 
 if len(sys.argv)<4:
-    print 'Usage: ./HOHOH-groundState.py N_size nReps descendantSteps nRepsDW'
+    print 'Usage: ./HOHOH-groundState.py N_size nReps descendantSteps nRepsDW startN'
     end
 
 
@@ -27,7 +29,7 @@ N_size=int(sys.argv[1])
 nReps=int(sys.argv[2])
 descendantSteps=int(sys.argv[3])
 nRepsDW=int(sys.argv[4])
-
+startN=int(sys.argv[5])
 #figure out which nrep number we're at in the directory of interest
 fileParameterName=molecule+'-'+state+'-'+DWstate+'-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)
 path='data'+molecule+'/'+state+'/'+DWstate+'/'
@@ -70,7 +72,7 @@ outputFile.write('save energy to '+path+'equilibration-vref-pop-'+fileParameterN
 
 #
 
-for iwfn in range(nReps):
+for iwfn in range(startN,nReps):
     print '   REPETITION NUMBER: ', iwfn
     v_ref_list,pop_list,finalCoords,d=Wfn.propagate(inputx,propagationSteps,printCensus=True,initialPop=N_size)
     np.savetxt(path+'vref-pop-'+str(iwfn)+'-'+fileParameterName+'-array.data',np.array(zip(np.arange(propagationSteps+1),v_ref_list,pop_list)))

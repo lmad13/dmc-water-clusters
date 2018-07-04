@@ -10,8 +10,8 @@ au2ang=0.529177249
 massConversionFactor=1.000000000000000000/6.02213670000e23/9.10938970000e-28
 ang2bohr=1.88973
 bohr2ang=1.000/ang2bohr
-
-verbose=False
+global verbose
+verbose=True
 class HarmonicApproxSpectrum(object):
     def __init__(self,wfn,coords,dw,path='dataH3O2/stateGround/DWGround'):
         self.wfn=wfn
@@ -120,8 +120,68 @@ class HarmonicApproxSpectrum(object):
 
         return moments,secondMoments#,secondMomentsDWeighted
 
+    def calculateHOAWfnAmplitude(self,coords,dw,GfileName,silent=True):
+        if silent:
+            verbose=False
+        else:
+            verbose=True
+        self.G=self.LoadG(GfileName)
+        # Now determine the intrinsic linear combinations of SymInternal coordinates of the Wfn based on the second moments
+        moments,secondMoments=self.calculateSecondMoments(coords,dw)
+        q,q2,q4=self.calculateQCoordinates(moments,secondMoments,dw)
+        indexOfAsym,indexOfZDisp=self.determineNormalModeIdentities(moments,secondMoments,dw)
+        
+        q4ave=np.average(q4,axis=0,weights=dw/np.sum(dw)) #gaah
+        q2ave=np.average(q2,axis=0,weights=dw/np.sum(dw))
+        qave =np.average(q,axis=0,weights=dw/np.sum(dw))
 
-    def calculateSpectrum(self, coords,dw,GfileName):
+        dipoleMoments=self.wfn.molecule.dipole(coords)
+        averageDipoleMoment_0=np.average(dipoleMoments,axis=0,weights=dw)
+
+        #aMu_i=<1_i|dipoleMoment|0>=Sum_n^walkers(Dipole_n*q_i*dw_n)/Sum(dw) #Equation 4 for \psi_n=\psi_1
+        Mu_Asym=[]#np.zeros(dipoleMoments.shape)
+
+        Q_Asym=q[:,indexOfAsym]
+        for P,R,d in zip(dipoleMoments,Q_Asym,dw):
+            Mu_Asym.append(np.outer(P,-R)*d)  #off by a sign change for some reason so I changed it to be -R instead of R...I guess P could be backwards? 
+
+        
+        Mu_Asym=np.array(Mu_Asym).reshape(dipoleMoments.shape)
+        #Mu_Asym=aMu_Asym/np.sum(dw)
+
+
+        #aMu_Asym=aMu_Asym.transpose()
+
+
+        #aMu_i=<1_i|dipoleMoment|0>=Sum_n^walkers(Dipole_n*q_i*dw_n)/Sum(dw) #Equation 4 for \psi_n=\psi_1
+        Mu_ZDisp=[]#np.zeros(dipoleMoments.shape)
+
+        Q_ZDisp=q[:,indexOfZDisp]
+        for P,R,d in zip(dipoleMoments,Q_ZDisp,dw):
+            Mu_ZDisp.append(np.outer(P,-R)*d)  #off by a sign change for some reason so I changed it to be -R instead of R...I guess P could be backwards? 
+
+        Mu_ZDisp=np.array(Mu_ZDisp).reshape(dipoleMoments.shape)
+        #Mu_ZDisp=aMu_ZDisp/np.sum(dw)
+
+
+        #aMu_ZDisp=aMu_ZDisp.transpose()
+
+
+        #magMu_Asym=np.sum(aMu_Asym**2,axis=1)/(np.sum(dw)*q2ave[indexOfAsym])
+        #magMu_ZDisp=np.sum(aMu_ZDisp**2,axis=1)/(np.sum(dw)*q2ave[indexOfZDisp])
+
+        return Q_Asym,Mu_Asym,np.sqrt(np.sum(q2[:,indexOfAsym]*dw)),Q_ZDisp,Mu_ZDisp,np.sqrt(np.sum(q2[:,indexOfZDisp]*dw)),np.sqrt(np.sum(dw)),q
+
+        #return aMu_Asym/q2ave[indexOfAsym],aMu_ZDisp/q2ave[indexOfZDisp]
+        #return magMu_Asym,magMu_ZDisp
+
+
+
+    def calculateSpectrum(self, coords,dw,GfileName,silent=False):
+        if silent:
+            verbose=False
+        else:
+            verbose=True
         #Equations are referenced from McCoy, Diken, and Johnson. JPC A 2009,113,7346-7352
         print 'I better be calculating the spectrum from ECKART ROTATED coordinates!'
 
@@ -194,7 +254,7 @@ class HarmonicApproxSpectrum(object):
         Eq=(Vq/q2ave+Tq)-V_0
         
         #Lastly, the dipole moments to calculate the intensities!
-        dipoleMoments=self.wfn.molecule.dipole(coords)
+        dipoleMoments=self.wfn.molecule.calcDipole(coords,eckartRotated=True)
         averageDipoleMoment_0=np.average(dipoleMoments,axis=0,weights=dw)
 
         #aMu_i=<1_i|dipoleMoment|0>=Sum_n^walkers(Dipole_n*q_i*dw_n)/Sum(dw) #Equation 4 for \psi_n=\psi_1
@@ -211,7 +271,7 @@ class HarmonicApproxSpectrum(object):
         aMu=aMu/np.sum(dw)
         aMu2d=aMu2d/np.sum(dw)
 
-        np.savetxt("WtvsMu-qs-a.data",zip(dw,np.sum(dipoleMoments**2,axis=1),q[:,5],q[:,6]))
+        np.savetxt("WtvsMu-q-0-1-4-8-a-s-z.data",zip(dw,np.sum(dipoleMoments**2,axis=1),q[:,0],q[:,1],q[:,4],q[:,8],moments[:,1],moments[:,0],moments[:,8],moments[:,5]))
 
         aMu=aMu.transpose()
         aMu2d=aMu2d.transpose()  #switches around the axes
@@ -233,9 +293,9 @@ class HarmonicApproxSpectrum(object):
                 magMu2d[ivibmode,jvibmode]=magMu2d[ivibmode,jvibmode]/q2ave2d[ivibmode,jvibmode]
                 magMu2d[jvibmode,ivibmode]=magMu2d[ivibmode,jvibmode]
 
-        print "m alpha   alpha'=0.5/<q2>        Vq            Vq/q2ave      Tq            Eq          |<1|dipole|0>|"
+        if verbose: print "m alpha   alpha'=0.5/<q2>        Vq            Vq/q2ave      Tq            Eq          |<1|dipole|0>|"
         for i in range(9):
-            print i, alpha[i], alphaPrime[i],au2wn*Vq[i], au2wn*Vq[i], Vq[i]/q2ave[i]*au2wn, Eq[i]*au2wn, magAvgMu[i]
+            if verbose: print i, alpha[i], alphaPrime[i],au2wn*Vq[i], au2wn*Vq[i], Vq[i]/q2ave[i]*au2wn, Eq[i]*au2wn, magAvgMu[i]
             
         if verbose: print 'energies!', zip(Vq2d[0]*au2wn,Tq2d[0]*au2wn,Eq2d[0]*au2wn)
 
@@ -246,14 +306,14 @@ class HarmonicApproxSpectrum(object):
         comboFile=open(comboFileName,'w')
 
         for i in range(self.nVibs):
-            print Eq[i]*au2wn, magAvgMu[i], 'mode ',i 
+            if verbose: print Eq[i]*au2wn, magAvgMu[i], 'mode ',i 
             fundamentalFile.write(str( Eq[i]*au2wn)+"   "+str(magAvgMu[i])+"       "+str(i)+"\n")
         for i in range(self.nVibs):
             for j in range(i):
-                print Eq2d[i,j]*au2wn , magMu2d[i,j],'combination bands' , i,j
+                if verbose: print Eq2d[i,j]*au2wn , magMu2d[i,j],'combination bands' , i,j
                 comboFile.write(str( Eq2d[i,j]*au2wn)+"   "+str(magMu2d[i,j])+"       "+str(i)+" "+str(j)+"\n")
         for i in range(self.nVibs):
-            print Eq2d[i,i]*au2wn , magMu2d[i,i],'overtone bands' , i,i
+            if verbose: print Eq2d[i,i]*au2wn , magMu2d[i,i],'overtone bands' , i,i
             comboFile.write(str( Eq2d[i,i]*au2wn)+"   "+str(magMu2d[i,i])+"       "+str(i)+" "+str(i)+"\n")
         fundamentalFile.close()
         comboFile.close
@@ -268,10 +328,48 @@ class HarmonicApproxSpectrum(object):
         #print 'descendant weighted average relative potential energy', np.average(relativePotentialEnergy,weights=dw)
         return relativePotentialEnergy
 
-    def calculateQCoordinates(self,moments,secondMoments,dw):
+    def determineNormalModeIdentities(self,moments,secondMoments,dw,silent=True):
+        if silent:
+            verbose=False
+        else:
+            verbose=True
+        TransformationMatrix=np.loadtxt(self.path+'TransformationMatrix.data')
+
+        for i,vec in enumerate(TransformationMatrix):
+
+            sortvecidx=np.argsort(abs(vec))[::-1]
+            sortedNames=use.sortList(abs(vec),self.wfn.molecule.internalName)[::-1]
+            
+            if sortedNames[0]=='rOH_a':
+                indexAsym=i
+            elif sortedNames[0]=='HdispZ':
+                indexZDisp=i
+
+        print 'identified q coord',indexAsym,indexZDisp
+
+        return indexAsym,indexZDisp
+
+    def calculateQCoordinates(self,moments,secondMoments,dw,silent=True):
+        silent=False
+        if silent:
+            verbose=False
+        else:
+            verbose=True
         mu2Ave=np.average(secondMoments,axis=0,weights=dw)
         mu2Ave=mu2Ave/2.000000000000
+        
+        #let's try decoupling the mu2 and g matrix
+###        for i in range (self.nVibs):
+###            for j in range (self.nVibs):
+###                if i==j:
+###                    donothing=1
+###                else:
+###                    self.G[i,j]=0.0000
+###                    mu2Ave[i,j]=0.0000
+###
         GHalfInv=self.diagonalizeRootG(self.G)
+
+
         mu2AvePrime=np.dot(GHalfInv,np.dot(mu2Ave,GHalfInv))
         eigval,vects=np.linalg.eigh(mu2AvePrime)
 
@@ -301,8 +399,6 @@ class HarmonicApproxSpectrum(object):
             sortedvecLocalVersion=use.sortList(abs(vec),vec)[::-1]
             if verbose: print 'sorted\n',zip(sortvecidx,sortedvec,sortedNames,sortedvecLocalVersion)
             if verbose: print 'assignments\n',zip(sortedNames,sortvecidx,sortedvec)[0:4]
-
-
 
             #calculate q from the moments and the transformation matrix
         q=[]
