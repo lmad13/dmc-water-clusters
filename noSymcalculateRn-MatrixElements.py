@@ -72,21 +72,22 @@ for iwfn in range(nReps):
     #load in the three wavefunctions
     groundStateWfnName='Wfn-'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.xyz'
     groundStateCoords,dw00=Wfn.loadCoords(groundPath+groundStateWfnName)
-    symGroundStateCoords,DW0_0=Wfn.molecule.symmetrizeCoordinates(groundStateCoords,dw00,typeOfSymmetry='regular')
-    print 'DW0_0.shape',DW0_0.shape,'not same?',dw00.shape
+    symGroundStateCoords,DW0_0=Wfn.molecule.symmetrizeCoordinates(groundStateCoords,dw00,typeOfSymmetry='none')
     DW0_0=DW0_0/np.sum(DW0_0)
+    print "DW0_0.shape",DW0_0.shape, 'same?', dw00.shape
 
     groundToExcStateWfnName='Wfn-'+str(iwfn)+'-'+molecule+'-'+stateGround+DWstate+'-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.xyz'
     
     groundToExcStateCoords,dw01=Wfn.loadCoords(groundToExcPath+groundToExcStateWfnName)
     
-    DW0_1=np.concatenate((dw01,dw01))
+    symGroundToExcStateCoords, DW0_1= Wfn.molecule.symmetrizeCoordinates(groundToExcStateCoords,dw01,typeOfSymmetry='none')
+    #DW0_1=np.concatenate((dw01,dw01))
     DW0_1=DW0_1/np.sum(DW0_1)
 
     excStateWfnName='Wfn-'+str(iwfn)+'-'+molecule+'-'+state+'-'+DWstate+'-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.xyz'
     excStateCoords,dw11=Wfn.loadCoords(excitedPath+excStateWfnName)
 
-    symExcStateCoords,DW1_1=Wfn.molecule.symmetrizeCoordinates(excStateCoords,dw11,typeOfSymmetry='regular')
+    symExcStateCoords,DW1_1=Wfn.molecule.symmetrizeCoordinates(excStateCoords,dw11,typeOfSymmetry='none')
     DW1_1=DW1_1/np.sum(DW1_1)
     
     print 'loading these',groundPath+groundStateWfnName, groundToExcPath+groundToExcStateWfnName, excitedPath+excStateWfnName
@@ -111,7 +112,10 @@ for iwfn in range(nReps):
     
     Expectation_0_R_1_ver2.append(np.sum(sign_groundState*R_0*DW0_1)/np.sqrt(np.sum(DW0_0_ver2)*np.sum(DW0_1*DW0_1/DW0_0_ver2)))
     Expectation_1_R_1_PRIME_ver2.append(np.sum(R_0*DW0_1*DW0_1/DW0_0_ver2)/np.sum(DW0_1*DW0_1/DW0_0_ver2))
-    
+
+    print 'normalization constants, <00>:',np.sum(DW0_0),'<11>:',np.sum(DW1_1),
+    print '<11PRIME>',np.sum(DW0_1[nonZeros_0]*DW0_1[nonZeros_0]/(DW0_0[nonZeros_0])/np.sum(DW0_0[nonZeros_0])),
+    print '<01>:',np.sqrt(np.sum(DW0_0[nonZeros_0])*np.sum(DW0_1[nonZeros_0]*DW0_1[nonZeros_0]/(DW0_0[nonZeros_0]/np.sum(DW0_0[nonZeros_0]))))    
     
 print 'Tau DW: ', descendantSteps, "<0|",name,"|0>          =",np.average(Expectation_0_R_0),'+/-',(np.max(Expectation_0_R_0)-np.min(Expectation_0_R_0))/(2.0*np.sqrt(nReps))
 print 'Tau DW: ', descendantSteps, "<0|",name,"|1>          =",np.average(Expectation_0_R_1),'+/-',(np.max(Expectation_0_R_1)-np.min(Expectation_0_R_1))/(2.0*np.sqrt(nReps))

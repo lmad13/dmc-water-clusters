@@ -867,7 +867,7 @@ class molecule (object):
                 xSym=np.concatenate((x, #1     
                                      self.exchange(x,[(1,3),(2,4)]))) #2
                 dwSym=np.concatenate((dw,dw))
-            elif typeOfSymmetry==None:
+            elif typeOfSymmetry=='none':
                 xSym=x
                 dwSym=dw
     

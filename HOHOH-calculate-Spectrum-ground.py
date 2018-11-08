@@ -75,7 +75,7 @@ for iwfn in range(nStart,nReps):
     
     nwalkers=GroundCoords.shape[0]
 
-    symCoords,symDW=Wfn.molecule.symmetrizeCoordinates(GroundCoords,groundDW,typeOfSymmetry='regular')
+    symCoords,symDW=Wfn.molecule.symmetrizeCoordinates(GroundCoords,groundDW,typeOfSymmetry='None')
 
     symEckRotCoords=Wfn.molecule.eckartRotate(symCoords)
     nWalkersTotal+=symCoords.shape[0]

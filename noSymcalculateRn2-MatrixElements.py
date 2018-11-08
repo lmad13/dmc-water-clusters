@@ -52,6 +52,7 @@ elif sys.argv[2]=='ZDisp':
     name='ZDisplacement'
 else:
     print '\nINVALID CHOICE of STATE!\n'
+    print 'Choose from: {AsymSt,DeltaR,Ground,ZDisp}'
     die
 
 #for (func,name) in [(Wfn.molecule.calcSharedProtonDisplacement,'DeltaR'),
@@ -72,44 +73,53 @@ for iwfn in range(nReps):
     #load in the three wavefunctions
     groundStateWfnName='Wfn-'+str(iwfn)+'-'+molecule+'-stateGround-DWGround-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.xyz'
     groundStateCoords,dw00=Wfn.loadCoords(groundPath+groundStateWfnName)
-    symGroundStateCoords,DW0_0=Wfn.molecule.symmetrizeCoordinates(groundStateCoords,dw00,typeOfSymmetry='regular')
-    print 'DW0_0.shape',DW0_0.shape,'not same?',dw00.shape
+    
+    symGroundStateCoords,DW0_0=Wfn.molecule.symmetrizeCoordinates(groundStateCoords,dw00,typeOfSymmetry='none')
+    
     DW0_0=DW0_0/np.sum(DW0_0)
-
+    
     groundToExcStateWfnName='Wfn-'+str(iwfn)+'-'+molecule+'-'+stateGround+DWstate+'-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.xyz'
     
     groundToExcStateCoords,dw01=Wfn.loadCoords(groundToExcPath+groundToExcStateWfnName)
     
-    DW0_1=np.concatenate((dw01,dw01))
+    symGgroundToExcStateCoords,DW0_1=Wfn.molecule.symmetrizeCoordinates(groundToExcStateCoords,dw01,typeOfSymmetry='none')
+
+    #DW0_1=np.concatenate((dw01,dw01))
+
     DW0_1=DW0_1/np.sum(DW0_1)
 
     excStateWfnName='Wfn-'+str(iwfn)+'-'+molecule+'-'+state+'-'+DWstate+'-dt'+str(dTau)+'-nWalk'+str(N_size)+'-nT'+str(descendantSteps)+'-nDW'+str(nRepsDW)+'.xyz'
     excStateCoords,dw11=Wfn.loadCoords(excitedPath+excStateWfnName)
-
     symExcStateCoords,DW1_1=Wfn.molecule.symmetrizeCoordinates(excStateCoords,dw11,typeOfSymmetry='regular')
+
     DW1_1=DW1_1/np.sum(DW1_1)
-    
+
     print 'loading these',groundPath+groundStateWfnName, groundToExcPath+groundToExcStateWfnName, excitedPath+excStateWfnName
 
-    R_0=func(symGroundStateCoords)
-    R_1=func(symExcStateCoords)
-    sign_groundState=np.sign(func(symGroundStateCoords))
+    R_0=func(symGroundStateCoords)**2
+    R_1=func(symExcStateCoords)**2
 
     Expectation_0_R_0.append(np.sum(R_0*DW0_0)/np.sum(DW0_0))
     Expectation_1_R_1.append(np.sum(R_1*DW1_1)/np.sum(DW1_1))
     nonZeros_0=np.logical_not((DW0_0==0.0))
-    Expectation_0_R_1.append(np.sum(sign_groundState[nonZeros_0]*R_0[nonZeros_0]*DW0_1[nonZeros_0])/np.sqrt(np.sum(DW0_0[nonZeros_0])*np.sum(DW0_1[nonZeros_0]*DW0_1[nonZeros_0]/DW0_0[nonZeros_0])))
+    sign_groundState=np.sign(func(symGroundStateCoords))
+    Expectation_0_R_1.append(np.sum(R_0[nonZeros_0]*sign_groundState[nonZeros_0]*DW0_1[nonZeros_0]) / np.sqrt(np.sum(DW0_0[nonZeros_0])*np.sum(DW0_1[nonZeros_0]*DW0_1[nonZeros_0]/DW0_0[nonZeros_0])))
 
+    
     Expectation_1_R_1_PRIME.append(np.sum(R_0[nonZeros_0]*DW0_1[nonZeros_0]*DW0_1[nonZeros_0]/DW0_0[nonZeros_0])/np.sum(DW0_1[nonZeros_0]*DW0_1[nonZeros_0]/DW0_0[nonZeros_0]))
     
     zeros_0=np.logical_not((DW0_0>0.0))
-    print 'the old min of DW0_0:', np.min(DW0_0[nonZeros_0]),np.sum(DW0_1[nonZeros_0]*DW0_1[nonZeros_0]/DW0_0[nonZeros_0]), 'vs.',
+    print 'normalization constants, <00>:',np.sum(DW0_0),'<11>:',np.sum(DW1_1),
+    print '<11PRIME>',np.sum(DW0_1[nonZeros_0]*DW0_1[nonZeros_0]/(DW0_0[nonZeros_0])/np.sum(DW0_0[nonZeros_0])),
+    print '<01>:',np.sqrt(np.sum(DW0_0[nonZeros_0])*np.sum(DW0_1[nonZeros_0]*DW0_1[nonZeros_0]/(DW0_0[nonZeros_0]/np.sum(DW0_0[nonZeros_0]))))
+                                                                                                                                                                                                     
+    print 'the old min of DW0_0:', np.min(DW0_0[nonZeros_0]),'vs.',
     
     DW0_0_ver2=1.0*DW0_0
     DW0_0_ver2[zeros_0]=np.min(DW0_0[nonZeros_0])/2.0#np.random.uniform(low=0.000000001,high=np.min(DW0_0[nonZeros_0]))
     print np.sum(DW0_1*DW0_1/DW0_0_ver2)
     
-    Expectation_0_R_1_ver2.append(np.sum(sign_groundState*R_0*DW0_1)/np.sqrt(np.sum(DW0_0_ver2)*np.sum(DW0_1*DW0_1/DW0_0_ver2)))
+    Expectation_0_R_1_ver2.append(np.sum(R_0*DW0_1)/np.sqrt(np.sum(DW0_0_ver2)*np.sum(DW0_1*DW0_1/DW0_0_ver2)))
     Expectation_1_R_1_PRIME_ver2.append(np.sum(R_0*DW0_1*DW0_1/DW0_0_ver2)/np.sum(DW0_1*DW0_1/DW0_0_ver2))
     
     
@@ -120,7 +130,7 @@ print 'Tau DW: ', descendantSteps, "<1|",name,"|1>          =",np.average(Expect
 print 'Tau DW: ', descendantSteps, "<1|",name,"|1> Prime    =",np.average(Expectation_1_R_1_PRIME),'+/-',(np.max(Expectation_1_R_1_PRIME)-np.min(Expectation_1_R_1_PRIME))/(2.0*np.sqrt(nReps))
 print 'Tau DW: ', descendantSteps, "<1|",name,"|1> Prime v2 =",np.average(Expectation_1_R_1_PRIME_ver2),'+/-',(np.max(Expectation_1_R_1_PRIME_ver2)-np.min(Expectation_1_R_1_PRIME_ver2))/(2.0*np.sqrt(nReps))
                                                                                
-fileout=open(excitedPath+'MatrixElements-'+name+'.data','a')
+fileout=open(excitedPath+'MatrixElements-squared-'+name+'.data','a')
 fileout.write( molecule+'-'+state+'-'+DWstate+'   '+str(dTau)+'   '+str(N_size)+'      '+str(nReps)+'      '+str(descendantSteps)+'      '+str(nRepsDW)+'      '+
                str(np.average(Expectation_0_R_0))+' +/- '+str((np.max(Expectation_0_R_0)-np.min(Expectation_0_R_0))/(2.0*np.sqrt(nReps)))+'  '+
                str(np.average(Expectation_0_R_1))+' +/- '+str((np.max(Expectation_0_R_1)-np.min(Expectation_0_R_1))/(2.0*np.sqrt(nReps)))+'  '+

@@ -40,8 +40,8 @@ print 'the files that already exist are:', preExistingFiles
 outputFile=open(path+fileParameterName+'-logFile.data','w')
 outputFile.write('the files that already exist are: '+str(preExistingFiles)+'\n')
 print '   *** printing to ***    ',path+fileParameterName+'-logFile.data'
-equilibrationSteps=500
-propagationSteps=500
+equilibrationSteps=5000
+propagationSteps=1000
 
 starttime=time.time()
 
